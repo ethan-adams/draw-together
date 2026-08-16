@@ -4,7 +4,7 @@ A real-time collaborative whiteboard built to scale **horizontally**: any number
 stateless gateway nodes serve one shared board, and an edit made on one node reaches
 everyone on every other node.
 
-![LiveBoard — a shared whiteboard with live cursors and presence](docs/hero.png)
+![LiveBoard — two people drawing on one shared board in real time, with live cursors and presence](docs/demo.gif)
 
 **Measured on a local 3-node `kind` cluster (a single 2-CPU VM, $0 cloud):** 500 concurrent
 WebSocket clients held at **p95 34 ms · p99 66 ms broadcast latency, zero errors**. The gateway
