@@ -6,9 +6,11 @@ everyone on every other node.
 
 > _[ gif goes here — two browsers drawing on one board, served by two different nodes ]_
 
-**Headline (measured, filled in after the load test):** _N stateless nodes · one board ·
-~X,000 concurrent WebSocket clients · p99 broadcast latency ~Y ms — on a local 3-node
-`kind` cluster, $0 of cloud._
+**Measured on a local 3-node `kind` cluster (a single 2-CPU VM, $0 cloud):** 500 concurrent
+WebSocket clients held at **p95 34 ms · p99 66 ms broadcast latency, zero errors**. The gateway
+accepts **3,000 concurrent connections with zero connection errors**; latency then grows as the
+2-CPU VM saturates — fan-out is CPU-bound, and the stateless design scales out with more cores.
+Full method, numbers, and bottleneck analysis: **[loadtest/RESULTS.md](loadtest/RESULTS.md)**.
 
 ## Why it's interesting
 
@@ -68,8 +70,9 @@ go run loadtest/catchup_check.go  # history survives across nodes + reconnect
 ## Status
 
 See the [build steps in ARCHITECTURE.md](ARCHITECTURE.md#build-steps).
-Working today: multi-node fan-out over Redis + durable cross-node catch-up in Postgres.
-Next: a GraphQL control plane (accounts, board list) and a published load test.
+Working today: multi-node fan-out (Redis), durable cross-node catch-up (Postgres),
+Kubernetes on `kind`, and a [published load test](loadtest/RESULTS.md).
+Next: a GraphQL control plane (accounts, board list) and a React UI.
 
 ## License
 

@@ -22,10 +22,10 @@ const ROOM = __ENV.ROOM ? parseInt(__ENV.ROOM, 10) : 20;
 const HOLD = __ENV.HOLD || '25s';
 const URL = __ENV.URL || 'ws://localhost:8080/ws';
 
-// Only count messages that are plausibly *live* (fresh timestamp). Catch-up
-// replays carry an old timestamp; excluding them keeps the metric about live
-// broadcast latency, not history replay.
-const LIVE_WINDOW_MS = 2000;
+// Guard against counting a stray non-live message. The post-connect warmup skip
+// already excludes the one-time catch-up replay, so this can be generous — we
+// want true high latencies under load to show, not be capped away.
+const LIVE_WINDOW_MS = 10000;
 const ROOMS = Math.max(1, Math.ceil(CONNS / ROOM));
 
 export const options = {
