@@ -1,0 +1,13 @@
+# A local, multi-node Kubernetes cluster — three nodes, zero cloud cost.
+# The gateway runs as 3 replicas spread across the two worker nodes; Redis and
+# Postgres run in-cluster. Load tests run as an in-cluster Job, so traffic never
+# crosses the host's port-forward proxy.
+#
+#   kind create cluster --config deploy/kind/cluster.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: liveboard
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker

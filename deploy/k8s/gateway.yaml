@@ -1,0 +1,57 @@
+# The gateway: 3 stateless replicas, spread across worker nodes. Any pod can
+# serve any client; they share boards through Redis and persist to Postgres.
+# NODE_NAME is the pod name, so the hello message (and demo) shows which pod
+# served each client.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: liveboard-gateway
+  labels: { app: liveboard-gateway }
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: liveboard-gateway }
+  template:
+    metadata:
+      labels: { app: liveboard-gateway }
+    spec:
+      # Prefer spreading replicas across nodes so "many nodes, one board" is real.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: liveboard-gateway }
+      containers:
+        - name: gateway
+          image: liveboard/gateway:local
+          imagePullPolicy: IfNotPresent # use the image loaded via `kind load`
+          env:
+            - { name: REDIS_ADDR, value: "redis:6379" }
+            - { name: POSTGRES_DSN, value: "postgres://liveboard:liveboard@postgres:5432/liveboard?sslmode=disable" }
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 1
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "100m", memory: "32Mi" }
+            limits: { cpu: "1", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: liveboard-gateway
+spec:
+  selector: { app: liveboard-gateway }
+  ports:
+    - port: 8080
+      targetPort: 8080

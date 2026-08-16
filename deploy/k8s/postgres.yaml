@@ -1,0 +1,44 @@
+# Ephemeral Postgres for the local cluster (data lives in the pod; fine for a
+# demo/load test). Swap in a StatefulSet + PVC for anything you want to keep.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels: { app: postgres }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - { name: POSTGRES_USER, value: liveboard }
+            - { name: POSTGRES_PASSWORD, value: liveboard }
+            - { name: POSTGRES_DB, value: liveboard }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "liveboard", "-d", "liveboard"] }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector: { app: postgres }
+  ports:
+    - port: 5432
+      targetPort: 5432

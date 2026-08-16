@@ -1,0 +1,29 @@
+# In-cluster load test. Runs k6 as a Job that talks to the gateway Service
+# directly, so traffic stays inside the cluster network — no host port-forward
+# proxy to bottleneck on. The script comes from the `ws-load` ConfigMap.
+#
+# The __CONNS__ / __ROOM__ / __HOLD__ placeholders are filled by `make k8s-loadtest`.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-load
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: grafana/k6:latest
+          command: ["k6", "run", "/scripts/ws_load.js"]
+          env:
+            - { name: URL, value: "ws://liveboard-gateway:8080/ws" }
+            - { name: CONNS, value: "__CONNS__" }
+            - { name: ROOM, value: "__ROOM__" }
+            - { name: HOLD, value: "__HOLD__" }
+          volumeMounts:
+            - { name: script, mountPath: /scripts }
+      volumes:
+        - name: script
+          configMap:
+            name: ws-load
