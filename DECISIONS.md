@@ -33,7 +33,7 @@ benefit; there's nothing to select, it's a firehose of tiny fixed-shape ops. Gra
 keep on the requests that are infrequent, typed, and worth caching. Using the right tool for
 each path is the point — and it's a more honest signal than forcing one transport to do both.
 
-## ADR 4 — Redis pub/sub for cross-node fan-out (next step)
+## ADR 4 — Redis pub/sub for cross-node fan-out
 
 **Decision:** nodes coordinate through Redis pub/sub rather than node-to-node connections or a
 sticky load balancer.
@@ -42,3 +42,14 @@ sticky load balancer.
 scale work. A client can land on any node; the node subscribes to the board's channel and gets
 every edit. Tradeoff: Redis is a shared dependency and a scaling axis of its own (channels,
 throughput), which the load-test step measures rather than assumes.
+
+Three details make it behave:
+
+- **Publish local-first, then Redis.** A node delivers a message to its own clients
+  immediately, then publishes it for the others — same-node peers don't pay a Redis round trip.
+- **Skip your own echo.** Every frame is tagged with the origin node's id; a node ignores the
+  frames it published itself, so nothing is delivered twice.
+- **Subscribe only to boards you host.** Subscriptions are ref-counted: a node listens to a
+  board's channel while it has clients there and drops it when the last one leaves. A node never
+  carries traffic for boards it isn't serving — without that, "just subscribe to everything"
+  would quietly cap how far it scales.

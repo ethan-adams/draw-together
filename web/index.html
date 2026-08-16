@@ -84,7 +84,10 @@
 
   function handle(m) {
     switch (m.type) {
-      case "hello": clientId = m.clientId; break;
+      case "hello":
+        clientId = m.clientId;
+        if (m.node) statusEl.textContent = "live · node " + m.node;
+        break;
       case "draw": segment(m.from, m.to, m.color, m.width); break;
       case "cursor":
         cursors.set(m.clientId, { x: m.x, y: m.y, color: m.color, ts: Date.now() });

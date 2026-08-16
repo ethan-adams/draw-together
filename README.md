@@ -38,13 +38,32 @@ make dev          # starts the gateway on http://localhost:8080
 ```
 
 Open **http://localhost:8080** in two browser windows, keep the board name the same, and
-draw — strokes and cursors sync live. (At this stage both windows talk to one node; the
-Redis fan-out that makes _multiple_ nodes share a board is the next step.)
+draw — strokes and cursors sync live.
+
+## See it scale across nodes
+
+Needs Docker. Brings up **two interchangeable gateway nodes + Redis + a load balancer**:
+
+```bash
+docker compose up --build     # http://localhost:8080
+```
+
+Open the URL in two windows. The load balancer round-robins them onto **different nodes**
+(the corner shows `node gw1` / `node gw2`), yet they draw on the **same board** — an edit on
+one node reaches clients on the other through Redis. No sticky sessions, no special node.
+
+Prove it without a browser:
+
+```bash
+go run loadtest/xnode_check.go
+# PASS: a stroke on node gw1 reached a client on node gw2
+```
 
 ## Status
 
-Built in visible steps — see the [roadmap in ARCHITECTURE.md](ARCHITECTURE.md#build-steps).
-Current: single-node gateway + live canvas. Next: Redis pub/sub across nodes.
+See the [build steps in ARCHITECTURE.md](ARCHITECTURE.md#build-steps).
+Working today: multi-node fan-out over Redis. Next: durable snapshots so a late joiner
+catches up instantly.
 
 ## License
 

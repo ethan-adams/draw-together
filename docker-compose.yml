@@ -1,0 +1,48 @@
+# Two interchangeable gateway nodes behind one load balancer, sharing boards
+# through Redis. Open http://localhost:8080 in two windows: the load balancer
+# round-robins them onto different nodes (watch the node label in the corner),
+# yet they draw on the same board. That's the whole point — no node is special.
+#
+#   docker compose up --build
+#
+# Prefer to pin a window to a specific node? Hit http://localhost:8081 (gw1) or
+# http://localhost:8082 (gw2) directly.
+name: liveboard
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  gw1:
+    build: .
+    environment:
+      REDIS_ADDR: redis:6379
+      NODE_NAME: gw1
+    depends_on:
+      redis:
+        condition: service_started
+    ports:
+      - "8081:8080"
+
+  gw2:
+    build: .
+    environment:
+      REDIS_ADDR: redis:6379
+      NODE_NAME: gw2
+    depends_on:
+      redis:
+        condition: service_started
+    ports:
+      - "8082:8080"
+
+  lb:
+    image: caddy:2-alpine
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - gw1
+      - gw2

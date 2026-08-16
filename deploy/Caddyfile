@@ -1,0 +1,6 @@
+# Round-robin across the gateway nodes. No sticky sessions: the nodes are
+# stateless and share boards through Redis, so any node can serve any request —
+# including the WebSocket, which Caddy proxies transparently.
+:8080 {
+	reverse_proxy gw1:8080 gw2:8080
+}

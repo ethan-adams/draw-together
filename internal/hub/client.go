@@ -3,6 +3,7 @@ package hub
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -56,9 +57,14 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 	h.add(c)
 
-	// Tell the client the id the server assigned it, so it can stamp its own
-	// ops and ignore its own echoes.
-	c.send <- []byte(`{"type":"hello","clientId":"` + c.id + `"}`)
+	// Tell the client the id it was assigned (so it can ignore its own echoes)
+	// and which node served it (handy for demos).
+	hello, _ := json.Marshal(map[string]string{
+		"type":     "hello",
+		"clientId": c.id,
+		"node":     h.NodeName,
+	})
+	c.send <- hello
 
 	go c.writePump()
 	go c.readPump()
@@ -83,7 +89,7 @@ func (c *Client) readPump() {
 		if err != nil {
 			return
 		}
-		c.hub.Broadcast(c.boardID, c.id, msg)
+		c.hub.Publish(c.boardID, c.id, msg)
 	}
 }
 
