@@ -1,7 +1,8 @@
 # Two interchangeable gateway nodes behind one load balancer, sharing boards
-# through Redis. Open http://localhost:8080 in two windows: the load balancer
-# round-robins them onto different nodes (watch the node label in the corner),
-# yet they draw on the same board. That's the whole point — no node is special.
+# through Redis and persisting them to Postgres. Open http://localhost:8080 in
+# two windows: the load balancer round-robins them onto different nodes (watch
+# the node label in the corner), yet they draw on the same board. Refresh, or
+# join late on the other node, and the drawing is still there.
 #
 #   docker compose up --build
 #
@@ -9,31 +10,52 @@
 # http://localhost:8082 (gw2) directly.
 name: liveboard
 
+x-gateway-env: &gateway-env
+  REDIS_ADDR: redis:6379
+  POSTGRES_DSN: postgres://liveboard:liveboard@postgres:5432/liveboard?sslmode=disable
+
 services:
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: liveboard
+      POSTGRES_PASSWORD: liveboard
+      POSTGRES_DB: liveboard
+    # Not published to the host — the gateways reach it over the compose network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U liveboard -d liveboard"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
   gw1:
     build: .
     environment:
-      REDIS_ADDR: redis:6379
+      <<: *gateway-env
       NODE_NAME: gw1
     depends_on:
       redis:
         condition: service_started
+      postgres:
+        condition: service_healthy
     ports:
       - "8081:8080"
 
   gw2:
     build: .
     environment:
-      REDIS_ADDR: redis:6379
+      <<: *gateway-env
       NODE_NAME: gw2
     depends_on:
       redis:
         condition: service_started
+      postgres:
+        condition: service_healthy
     ports:
       - "8082:8080"
 

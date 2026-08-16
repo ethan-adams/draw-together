@@ -53,3 +53,18 @@ Three details make it behave:
   board's channel while it has clients there and drops it when the last one leaves. A node never
   carries traffic for boards it isn't serving — without that, "just subscribe to everything"
   would quietly cap how far it scales.
+
+## ADR 5 — Persistence lives off the hot path
+
+**Decision:** store durable ops (strokes, clears — not cursors) in Postgres, but never write on
+the request path. A recorder enqueues; a single background writer batches inserts. A client
+joining late replays the board's ops from Postgres, so catch-up works on any node.
+
+**Why:** the drawing path handles many messages per second per client; a synchronous database
+write per stroke would gate throughput and pollute the load-test latency numbers. Batching turns
+a flood of tiny inserts into a few array inserts. The writer sheds under overload rather than
+blocking a client — the same best-effort stance as delivery, and a dropped stroke is corrected
+by the next one. The origin node is the only one that records (remote copies arrive via the
+broadcaster, which doesn't persist), so each op is stored exactly once. Cursors are presence, not
+history, so they're never written. Compaction (folding the op log into periodic snapshots) is the
+next optimization once boards get long — the interface already hides it from callers.

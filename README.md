@@ -52,18 +52,24 @@ Open the URL in two windows. The load balancer round-robins them onto **differen
 (the corner shows `node gw1` / `node gw2`), yet they draw on the **same board** — an edit on
 one node reaches clients on the other through Redis. No sticky sessions, no special node.
 
-Prove it without a browser:
+Boards are **durable and shared**: refresh, or join late on the other node, and the drawing
+is still there — it's replayed from Postgres. Cursors stay transient (never stored).
+
+Prove both without a browser:
 
 ```bash
-go run loadtest/xnode_check.go
+go run loadtest/xnode_check.go    # live sync crosses nodes
 # PASS: a stroke on node gw1 reached a client on node gw2
+
+go run loadtest/catchup_check.go  # history survives across nodes + reconnect
+# PASS: a stroke drawn on gw1 replayed to a fresh client on gw2
 ```
 
 ## Status
 
 See the [build steps in ARCHITECTURE.md](ARCHITECTURE.md#build-steps).
-Working today: multi-node fan-out over Redis. Next: durable snapshots so a late joiner
-catches up instantly.
+Working today: multi-node fan-out over Redis + durable cross-node catch-up in Postgres.
+Next: a GraphQL control plane (accounts, board list) and a published load test.
 
 ## License
 

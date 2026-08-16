@@ -19,6 +19,20 @@ type Broadcaster interface {
 	UnbindBoard(boardID string)
 }
 
+// Recorder persists a board's durable ops (strokes, clears — not cursors) and
+// replays them so a client joining late, on any node, sees the current drawing.
+// Record is called for every inbound message and decides what is worth keeping;
+// Catchup returns the ops to replay, in order.
+type Recorder interface {
+	Record(boardID string, payload []byte)
+	Catchup(boardID string) [][]byte
+}
+
+type nopRecorder struct{}
+
+func (nopRecorder) Record(string, []byte)      {}
+func (nopRecorder) Catchup(string) [][]byte    { return nil }
+
 // Hub is the per-node board registry.
 type Hub struct {
 	// NodeName is a human label for this process (e.g. "gw1"), sent to clients
@@ -28,17 +42,25 @@ type Hub struct {
 	mu     sync.RWMutex
 	boards map[string]map[*Client]struct{}
 	b      Broadcaster
+	rec    Recorder
 }
 
-// New returns a Hub that defaults to single-node (local) fan-out.
+// New returns a Hub that defaults to single-node (local) fan-out and no
+// persistence. Call SetBroadcaster / SetRecorder to change either.
 func New() *Hub {
-	h := &Hub{boards: make(map[string]map[*Client]struct{})}
+	h := &Hub{
+		boards: make(map[string]map[*Client]struct{}),
+		rec:    nopRecorder{},
+	}
 	h.b = NewLocalBroadcaster(h)
 	return h
 }
 
 // SetBroadcaster swaps the fan-out strategy. Call once at startup, before serving.
 func (h *Hub) SetBroadcaster(b Broadcaster) { h.b = b }
+
+// SetRecorder swaps the persistence strategy. Call once at startup, before serving.
+func (h *Hub) SetRecorder(r Recorder) { h.rec = r }
 
 func (h *Hub) add(c *Client) {
 	h.mu.Lock()
@@ -75,10 +97,17 @@ func (h *Hub) remove(c *Client) {
 	}
 }
 
-// Publish hands an inbound client message to the fan-out layer.
+// Publish hands an inbound client message to the fan-out layer, then to the
+// recorder. Only the node that received the message records it (remote messages
+// arrive via the broadcaster, which does not record), so each op is stored once.
 func (h *Hub) Publish(boardID, senderID string, payload []byte) {
 	h.b.Publish(boardID, senderID, payload)
+	h.rec.Record(boardID, payload)
 }
+
+// Catchup returns the ops a newly connected client should replay to see the
+// current board.
+func (h *Hub) Catchup(boardID string) [][]byte { return h.rec.Catchup(boardID) }
 
 // DeliverLocal sends payload to every client this node holds for boardID,
 // skipping senderID. The Broadcaster calls this for both local-origin and

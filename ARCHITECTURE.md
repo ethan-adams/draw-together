@@ -61,7 +61,8 @@ clients. No node owns the board, so adding replicas just adds capacity.
 
 1. ✅ Single-node gateway + live canvas (byte relay, ping/pong, best-effort delivery)
 2. ✅ Redis pub/sub fan-out — multiple nodes serve one board (`docker compose up`)
-3. ⬜ Postgres snapshots + op log — late-join catch-up
+3. ✅ Durable board state + cross-node catch-up — op log in Postgres, replayed on
+   join via an async batched writer (snapshot compaction is a later optimization)
 4. ⬜ GraphQL control plane — auth, list/create, load snapshot
 5. ⬜ Per-object CRDT convergence
 6. ⬜ Kubernetes on `kind` + HPA

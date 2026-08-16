@@ -57,6 +57,10 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 	h.add(c)
 
+	// Start the writer first so the sends below can't deadlock on the buffer,
+	// even when a busy board replays more ops than the send channel holds.
+	go c.writePump()
+
 	// Tell the client the id it was assigned (so it can ignore its own echoes)
 	// and which node served it (handy for demos).
 	hello, _ := json.Marshal(map[string]string{
@@ -66,7 +70,12 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	})
 	c.send <- hello
 
-	go c.writePump()
+	// Replay the current board so a late joiner — on any node — sees the drawing
+	// immediately instead of a blank canvas.
+	for _, op := range h.Catchup(c.boardID) {
+		c.send <- op
+	}
+
 	go c.readPump()
 }
 

@@ -1,9 +1,11 @@
 // Command gateway is a stateless WebSocket node for LiveBoard.
 //
 // Every node is interchangeable: a client can connect to any node and still
-// share a board with clients on other nodes. Fan-out between nodes is handled by
-// Redis pub/sub when REDIS_ADDR is set; otherwise the node runs standalone with
-// in-process delivery.
+// share a board with clients on other nodes. Fan-out between nodes uses Redis
+// pub/sub when REDIS_ADDR is set; board state is persisted to Postgres when
+// POSTGRES_DSN is set, so a late joiner on any node sees the current drawing.
+// With neither set, the node runs standalone with in-process delivery and
+// in-memory catch-up.
 package main
 
 import (
@@ -14,6 +16,7 @@ import (
 	"os"
 
 	"github.com/ethan-adams/liveboard/internal/hub"
+	"github.com/ethan-adams/liveboard/internal/store"
 )
 
 func main() {
@@ -21,11 +24,14 @@ func main() {
 	webDir := flag.String("web", envOr("WEB_DIR", "web"), "static assets directory")
 	flag.Parse()
 
+	ctx := context.Background()
+
 	h := hub.New()
 	h.NodeName = nodeName()
 
+	// Fan-out: Redis across nodes, or in-process for a single node.
 	if redisAddr := os.Getenv("REDIS_ADDR"); redisAddr != "" {
-		rb, err := hub.NewRedisBroadcaster(context.Background(), redisAddr, h)
+		rb, err := hub.NewRedisBroadcaster(ctx, redisAddr, h)
 		if err != nil {
 			log.Fatalf("redis fan-out unavailable at %s: %v", redisAddr, err)
 		}
@@ -33,6 +39,19 @@ func main() {
 		log.Printf("fan-out: redis %s | node %s", redisAddr, h.NodeName)
 	} else {
 		log.Printf("fan-out: local single-node | node %s", h.NodeName)
+	}
+
+	// Persistence: Postgres shared across nodes, or in-memory for a single node.
+	if dsn := os.Getenv("POSTGRES_DSN"); dsn != "" {
+		pr, err := store.NewPostgres(ctx, dsn)
+		if err != nil {
+			log.Fatalf("postgres unavailable: %v", err)
+		}
+		h.SetRecorder(pr)
+		log.Printf("persistence: postgres (shared catch-up)")
+	} else {
+		h.SetRecorder(store.NewMemory())
+		log.Printf("persistence: in-memory (single-node catch-up)")
 	}
 
 	mux := http.NewServeMux()
