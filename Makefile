@@ -13,9 +13,17 @@ help: ## Show this help
 tidy: ## Resolve Go dependencies
 	go mod tidy
 
+.PHONY: ui
+ui: ## Install deps and build the React UI to web/dist
+	cd web && npm install && npm run build
+
 .PHONY: dev
-dev: ## Run the gateway locally, then open http://localhost:8080 in two tabs
+dev: ui ## Build the UI, then run the gateway at http://localhost:8080
 	go run $(GATEWAY)
+
+.PHONY: ui-dev
+ui-dev: ## Vite dev server with hot reload (run `go run ./cmd/gateway` alongside)
+	cd web && npm run dev
 
 .PHONY: build
 build: ## Compile the gateway binary to ./bin/gateway

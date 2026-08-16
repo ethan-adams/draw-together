@@ -21,7 +21,7 @@ import (
 
 func main() {
 	addr := flag.String("addr", envOr("ADDR", ":8080"), "listen address")
-	webDir := flag.String("web", envOr("WEB_DIR", "web"), "static assets directory")
+	webDir := flag.String("web", envOr("WEB_DIR", "web/dist"), "static assets directory")
 	flag.Parse()
 
 	ctx := context.Background()

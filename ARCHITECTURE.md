@@ -68,4 +68,4 @@ clients. No node owns the board, so adding replicas just adds capacity.
 6. ✅ Kubernetes on `kind` — 3-node cluster, 3 stateless gateway replicas (HPA manifest
    included; needs metrics-server)
 7. ✅ k6 load test + published results — see [loadtest/RESULTS.md](loadtest/RESULTS.md)
-8. ⬜ Finishing kit — gif, ADRs, React UI
+8. 🔧 Finishing kit — React UI ✅ · ADRs ✅ · hero screenshot ✅ · two-node gif still to record

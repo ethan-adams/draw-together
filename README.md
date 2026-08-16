@@ -4,7 +4,7 @@ A real-time collaborative whiteboard built to scale **horizontally**: any number
 stateless gateway nodes serve one shared board, and an edit made on one node reaches
 everyone on every other node.
 
-> _[ gif goes here — two browsers drawing on one board, served by two different nodes ]_
+![LiveBoard — a shared whiteboard with live cursors and presence](docs/hero.png)
 
 **Measured on a local 3-node `kind` cluster (a single 2-CPU VM, $0 cloud):** 500 concurrent
 WebSocket clients held at **p95 34 ms · p99 66 ms broadcast latency, zero errors**. The gateway
@@ -31,16 +31,16 @@ Full method, numbers, and bottleneck analysis: **[loadtest/RESULTS.md](loadtest/
 Go (WebSocket gateway) · Redis (pub/sub + presence) · Postgres (snapshots + op log) ·
 GraphQL (control plane) · React + Canvas (client) · Kubernetes on `kind` · k6 (load test).
 
-## Quick start (single node, today)
+## Quick start (single node)
 
-Needs only Go and a browser.
+Needs Go, Node, and a browser.
 
 ```bash
-make dev          # starts the gateway on http://localhost:8080
+make dev          # builds the React UI, then serves it + the gateway on :8080
 ```
 
 Open **http://localhost:8080** in two browser windows, keep the board name the same, and
-draw — strokes and cursors sync live.
+draw — strokes, cursors, and presence sync live.
 
 ## See it scale across nodes
 
