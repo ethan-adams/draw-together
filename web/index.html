@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LiveBoard — dev canvas</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; }
+  header {
+    display: flex; gap: 12px; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid #8884;
+  }
+  header strong { font-size: 15px; }
+  header .spacer { flex: 1; }
+  #status { opacity: .7; }
+  #stage { position: relative; width: 100vw; height: calc(100vh - 45px); }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #board { cursor: crosshair; touch-action: none; }
+  #cursors { pointer-events: none; }
+  input[type=color] { width: 32px; height: 28px; padding: 0; border: none; background: none; }
+  label { display: inline-flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <strong>LiveBoard</strong>
+  <label>board <input id="boardId" value="default" size="10" /></label>
+  <label>color <input type="color" id="color" value="#e2504a" /></label>
+  <label>width <input type="range" id="width" min="1" max="20" value="3" /></label>
+  <button id="clear">clear</button>
+  <span class="spacer"></span>
+  <span id="status">connecting…</span>
+</header>
+<div id="stage">
+  <canvas id="board"></canvas>
+  <canvas id="cursors"></canvas>
+</div>
+
+<!--
+  Dev harness, not the shipped UI. This is a zero-build vanilla-canvas client so
+  the realtime plumbing is provable with only Go installed. It gets replaced by a
+  proper React + Vite app in a later step (build output goes to web/dist).
+-->
+<script>
+(() => {
+  const board = document.getElementById("board");
+  const overlay = document.getElementById("cursors");
+  const bctx = board.getContext("2d");
+  const octx = overlay.getContext("2d");
+  const statusEl = document.getElementById("status");
+  const boardInput = document.getElementById("boardId");
+  const colorInput = document.getElementById("color");
+  const widthInput = document.getElementById("width");
+
+  function fitOne(cv, ctx) {
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = cv.clientWidth * dpr;
+    cv.height = cv.clientHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+  }
+  function fit() { fitOne(board, bctx); fitOne(overlay, octx); }
+  window.addEventListener("resize", fit);
+  fit();
+
+  let ws, clientId = null, drawing = false, last = null;
+  const cursors = new Map(); // clientId -> {x, y, color, ts}
+
+  function connect() {
+    const name = boardInput.value || "default";
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/ws?board=${encodeURIComponent(name)}`);
+    ws.onopen = () => (statusEl.textContent = "live");
+    ws.onclose = () => { statusEl.textContent = "reconnecting…"; setTimeout(connect, 1000); };
+    ws.onmessage = (e) => handle(JSON.parse(e.data));
+  }
+
+  function send(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+  }
+
+  function handle(m) {
+    switch (m.type) {
+      case "hello": clientId = m.clientId; break;
+      case "draw": segment(m.from, m.to, m.color, m.width); break;
+      case "cursor":
+        cursors.set(m.clientId, { x: m.x, y: m.y, color: m.color, ts: Date.now() });
+        break;
+      case "clear": bctx.clearRect(0, 0, board.width, board.height); break;
+    }
+  }
+
+  function segment(from, to, color, width) {
+    bctx.strokeStyle = color;
+    bctx.lineWidth = width;
+    bctx.beginPath();
+    bctx.moveTo(from.x, from.y);
+    bctx.lineTo(to.x, to.y);
+    bctx.stroke();
+  }
+
+  function pos(e) {
+    const r = board.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  board.addEventListener("pointerdown", (e) => { drawing = true; last = pos(e); });
+  window.addEventListener("pointerup", () => { drawing = false; last = null; });
+  board.addEventListener("pointermove", (e) => {
+    const p = pos(e);
+    send({ type: "cursor", clientId, x: p.x, y: p.y, color: colorInput.value });
+    if (!drawing || !last) return;
+    const color = colorInput.value, width = +widthInput.value;
+    segment(last, p, color, width);                        // optimistic local render
+    send({ type: "draw", clientId, from: last, to: p, color, width });
+    last = p;
+  });
+
+  document.getElementById("clear").addEventListener("click", () => {
+    bctx.clearRect(0, 0, board.width, board.height);
+    send({ type: "clear" });
+  });
+  boardInput.addEventListener("change", () => {
+    bctx.clearRect(0, 0, board.width, board.height);
+    if (ws) ws.close();
+  });
+
+  // Cursor overlay: cleared and redrawn every frame; entries expire after 3s idle.
+  function renderCursors() {
+    const now = Date.now();
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+    for (const [id, c] of cursors) {
+      if (now - c.ts > 3000) { cursors.delete(id); continue; }
+      octx.save();
+      octx.fillStyle = c.color;
+      octx.globalAlpha = 0.9;
+      octx.beginPath();
+      octx.arc(c.x, c.y, 5, 0, Math.PI * 2);
+      octx.fill();
+      octx.restore();
+    }
+    requestAnimationFrame(renderCursors);
+  }
+  requestAnimationFrame(renderCursors);
+
+  connect();
+})();
+</script>
+</body>
+</html>
