@@ -18,10 +18,11 @@ Full method, numbers, and bottleneck analysis: **[loadtest/RESULTS.md](loadtest/
 - **Stateless fan-out.** Gateway nodes hold no authoritative state. Membership and
   cross-node delivery run through Redis pub/sub, so you scale by adding replicas — no
   sticky sessions, no node is special.
-- **Two transports on purpose.** Raw WebSocket carries the hot path today — cursors,
-  shapes, and ink at pointer speed. A GraphQL control plane (sign in, list/load boards)
-  is the planned cold path. The [decision doc](DECISIONS.md) explains why the 60fps
-  stream does **not** go through GraphQL subscriptions.
+- **Two transports on purpose.** Raw WebSocket carries the hot path — cursors, shapes,
+  and ink at pointer speed. A GraphQL control plane carries the cold path — list/create
+  boards — served as a **federation subgraph** at `/graphql`, with the lobby as its
+  client ([GRAPHQL.md](GRAPHQL.md)). The [decision doc](DECISIONS.md) explains why the
+  60fps stream does **not** go through GraphQL subscriptions.
 - **Ordered op log, not locking.** Every change is an id'd operation — add an object,
   erase objects, clear — relayed to peers and appended to a per-board log. A late joiner,
   on any node, replays that log to reach the exact same board, with no coordinator.
@@ -35,8 +36,8 @@ Full method, numbers, and bottleneck analysis: **[loadtest/RESULTS.md](loadtest/
 ## Stack
 
 Go (WebSocket gateway) · Redis (pub/sub + presence) · Postgres (op log) ·
-React + TypeScript + Canvas (client) · Kubernetes on `kind` · k6 (load test) ·
-GraphQL control plane (planned).
+React + TypeScript + Canvas (client) · GraphQL (gqlgen federation subgraph) ·
+Kubernetes on `kind` · k6 (load test).
 
 ## Quick start (single node)
 
@@ -46,8 +47,9 @@ Needs Go, Node, and a browser.
 make dev          # builds the React UI, then serves it + the gateway on :8080
 ```
 
-Open **http://localhost:8080** in two browser windows, keep the board name the same, and
-draw — shapes, connectors, ink, cursors, and presence all sync live. **Select** a shape and
+Open **http://localhost:8080** — the home page is a **lobby** (create or open a board).
+Open a board's URL in a second window to draw together — shapes, connectors, ink, cursors,
+and presence all sync live. **Select** a shape and
 drag it; attached connectors **stay glued to its edges** and follow. Select a connector and
 **drag either end onto a shape** to attach or re-route it. Connectors **snap to shape edges**
 as you draw them. Scroll (or two-finger drag) to pan; pinch or **⌘/Ctrl-scroll**
@@ -84,10 +86,10 @@ go run loadtest/catchup_check.go  # history survives across nodes + reconnect
 See the [build steps in ARCHITECTURE.md](ARCHITECTURE.md#build-steps).
 Working today: a polished diagram canvas (select/move with connector re-routing,
 shapes, edge-snapping connectors, eraser, infinite zoom/pan, light/dark) in a
-documented [design system](DESIGN.md), multi-node fan-out (Redis), durable
-cross-node catch-up (Postgres), Kubernetes on `kind`, and a
-[published load test](loadtest/RESULTS.md).
-Next: a GraphQL control plane (accounts, board list).
+documented [design system](DESIGN.md); a [GraphQL control plane](GRAPHQL.md) with
+a board lobby; multi-node fan-out (Redis); durable cross-node catch-up (Postgres);
+Kubernetes on `kind`; and a [published load test](loadtest/RESULTS.md).
+Next: per-object CRDT convergence and snapshot compaction.
 
 ## License
 

@@ -45,8 +45,9 @@ clients. No node owns the board, so adding replicas just adds capacity.
 
 ## Two transports, on purpose
 
-- **Cold path — GraphQL:** sign in, list boards, create a board, load a snapshot. Requests
-  that happen rarely and benefit from a typed schema and caching.
+- **Cold path — GraphQL:** list boards, create a board — rare, typed calls that benefit
+  from a schema. Built as a gqlgen federation subgraph at `/graphql`; the lobby is its
+  client. See [GRAPHQL.md](GRAPHQL.md).
 - **Hot path — WebSocket:** cursors and strokes, many per second per client. Kept as a lean
   byte relay. See [DECISIONS.md](DECISIONS.md) for why this isn't GraphQL subscriptions.
 
@@ -67,7 +68,9 @@ clients. No node owns the board, so adding replicas just adds capacity.
 2. ✅ Redis pub/sub fan-out — multiple nodes serve one board (`docker compose up`)
 3. ✅ Durable board state + cross-node catch-up — op log in Postgres, replayed on
    join via an async batched writer (snapshot compaction is a later optimization)
-4. ⬜ GraphQL control plane — auth, list/create, load snapshot
+4. ✅ GraphQL control plane — list/create boards, served as a gqlgen **federation
+   subgraph** at `/graphql`; the lobby is its client (see [GRAPHQL.md](GRAPHQL.md)).
+   No accounts by design.
 5. ⬜ Per-object CRDT convergence
 6. ✅ Kubernetes on `kind` — 3-node cluster, 3 stateless gateway replicas (HPA manifest
    included; needs metrics-server)

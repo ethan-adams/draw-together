@@ -15,6 +15,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/ethan-adams/draw-together/internal/gql"
 	"github.com/ethan-adams/draw-together/internal/hub"
 	"github.com/ethan-adams/draw-together/internal/store"
 )
@@ -42,15 +44,20 @@ func main() {
 	}
 
 	// Persistence: Postgres shared across nodes, or in-memory for a single node.
+	// The recorder is also the board registry the GraphQL control plane reads.
+	var registry store.BoardRegistry
 	if dsn := os.Getenv("POSTGRES_DSN"); dsn != "" {
 		pr, err := store.NewPostgres(ctx, dsn)
 		if err != nil {
 			log.Fatalf("postgres unavailable: %v", err)
 		}
 		h.SetRecorder(pr)
+		registry = pr
 		log.Printf("persistence: postgres (shared catch-up)")
 	} else {
-		h.SetRecorder(store.NewMemory())
+		mem := store.NewMemory()
+		h.SetRecorder(mem)
+		registry = mem
 		log.Printf("persistence: in-memory (single-node catch-up)")
 	}
 
@@ -60,6 +67,9 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	// Cold path: the GraphQL control plane (list/create boards) + a playground.
+	mux.Handle("/graphql", gql.NewServer(registry))
+	mux.Handle("/graphql/playground", playground.Handler("Draw", "/graphql"))
 	mux.Handle("/", http.FileServer(http.Dir(*webDir)))
 
 	log.Printf("draw gateway listening on %s (serving %q)", *addr, *webDir)

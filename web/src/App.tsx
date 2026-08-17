@@ -3,15 +3,24 @@ import { BoardCanvas, CanvasHandle } from './components/BoardCanvas';
 import { Toolbar } from './components/Toolbar';
 import { Presence } from './components/Presence';
 import { StatusPill } from './components/StatusPill';
+import { Lobby } from './components/Lobby';
 import { useDraw } from './lib/useDraw';
-import { useTheme } from './lib/useTheme';
+import { useTheme, Theme } from './lib/useTheme';
 import { INK, INK_HEX } from './lib/protocol';
 import { Tool } from './lib/tools';
 
 export default function App() {
-  const board = useMemo(() => new URLSearchParams(location.search).get('board') || 'welcome', []);
-
+  const board = useMemo(() => new URLSearchParams(location.search).get('board') || '', []);
   const [theme, setTheme] = useTheme();
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+
+  // No board in the URL → the GraphQL-powered lobby (the cold path). A board →
+  // the live canvas (the WebSocket hot path).
+  if (!board) return <Lobby theme={theme} onToggleTheme={toggleTheme} />;
+  return <BoardApp board={board} theme={theme} onToggleTheme={toggleTheme} />;
+}
+
+function BoardApp({ board, theme, onToggleTheme }: { board: string; theme: Theme; onToggleTheme: () => void }) {
   const [tool, setTool] = useState<Tool>('select');
   const [color, setColor] = useState<string>(INK);
   const [width, setWidth] = useState(4);
@@ -46,7 +55,7 @@ export default function App() {
           onZoomOut={() => canvas.current?.zoomOut()}
           onZoomReset={() => canvas.current?.resetView()}
           theme={theme}
-          onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onToggleTheme={onToggleTheme}
           onClear={clear}
         />
         <div className="top-right">

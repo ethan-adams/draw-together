@@ -11,7 +11,7 @@ import (
 const (
 	writerBatch = 500                    // flush after this many buffered ops
 	writerTick  = 200 * time.Millisecond // ...or at least this often
-	writerQueue = 4096                    // in-flight ops before we shed load
+	writerQueue = 4096                   // in-flight ops before we shed load
 )
 
 // PostgresRecorder persists ops to Postgres, shared across nodes so catch-up
@@ -55,7 +55,13 @@ CREATE TABLE IF NOT EXISTS board_ops (
     seq      bigserial PRIMARY KEY,
     op       jsonb  NOT NULL
 );
-CREATE INDEX IF NOT EXISTS board_ops_board_seq ON board_ops (board_id, seq);`
+CREATE INDEX IF NOT EXISTS board_ops_board_seq ON board_ops (board_id, seq);
+ALTER TABLE board_ops ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+CREATE TABLE IF NOT EXISTS boards (
+    id         text PRIMARY KEY,
+    title      text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);`
 	// Nodes start together and may race on CREATE; retry a couple of times.
 	var err error
 	for i := 0; i < 3; i++ {

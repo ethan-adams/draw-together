@@ -34,13 +34,14 @@ func cloneBytes(b []byte) []byte {
 // board's history. State is not shared between processes, so it only gives
 // catch-up on a single node — good enough for local dev.
 type MemoryRecorder struct {
-	mu  sync.Mutex
-	ops map[string][][]byte
+	mu     sync.Mutex
+	ops    map[string][][]byte
+	boards map[string]BoardInfo // control-plane registry (see boards.go)
 }
 
 // NewMemory returns an empty in-memory recorder.
 func NewMemory() *MemoryRecorder {
-	return &MemoryRecorder{ops: make(map[string][][]byte)}
+	return &MemoryRecorder{ops: make(map[string][][]byte), boards: make(map[string]BoardInfo)}
 }
 
 func (m *MemoryRecorder) Record(boardID string, payload []byte) {
