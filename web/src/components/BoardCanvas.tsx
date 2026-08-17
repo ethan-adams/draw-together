@@ -28,11 +28,12 @@ const MIN_SCALE = 0.15;
 const MAX_SCALE = 6;
 const GRID = 28;
 const SNAP_PX = 12; // endpoint snaps to a shape anchor within this screen distance
+const ENDPOINT_GRAB_PX = 12; // click within this of a selected connector's end to drag it
 const ANCHOR_REVEAL_PX = 46; // shape anchors fade in when the cursor gets this close
 const ACCENT = 'rgba(47, 158, 99, 0.92)'; // forest — anchor dots
 const SNAP_GOLD = 'rgba(212, 175, 55, 0.95)'; // gold — the active snap target / selection
 
-type ActionKind = 'draw' | 'shape' | 'connector' | 'erase' | 'pan' | 'move';
+type ActionKind = 'draw' | 'shape' | 'connector' | 'erase' | 'pan' | 'move' | 'endpoint';
 
 // A live move: the object being dragged, a snapshot of its start geometry, and
 // (for shapes) the connectors whose endpoints must follow it.
@@ -68,6 +69,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
   const snapEnd = useRef<Point | null>(null); // the anchor the live connector is snapping to
   const selected = useRef<string | null>(null);
   const move = useRef<MoveState | null>(null);
+  const endDrag = useRef<{ c: Connector; end: 'x1' | 'x2' } | null>(null);
 
   const requestRender = () => {
     dirty.current = true;
@@ -247,7 +249,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       drawObject(ctx, temp.current, cssVar('--on-board', '#26312b'));
     }
     screenTransform(ctx);
-    if (propsRef.current.tool === 'connector') drawSnapHints(ctx);
+    if (propsRef.current.tool === 'connector' || action.current === 'endpoint') drawSnapHints(ctx);
     drawSelection(ctx);
     for (const peer of Object.values(propsRef.current.peers)) {
       drawCursor(ctx, peer.x * v.scale + v.tx, peer.y * v.scale + v.ty, peer.color, peer.name);
@@ -294,6 +296,22 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     const obj = scene.current.find((o) => o.id === id);
     if (!obj) return;
     const v = view.current;
+    if (obj.kind === 'connector') {
+      // Draggable endpoint handles — grab one to re-route the connector.
+      for (const [ex, ey] of [
+        [obj.x1, obj.y1],
+        [obj.x2, obj.y2],
+      ]) {
+        ctx.beginPath();
+        ctx.arc(ex * v.scale + v.tx, ey * v.scale + v.ty, 5, 0, Math.PI * 2);
+        ctx.fillStyle = SNAP_GOLD;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+      }
+      return;
+    }
     const b = objBBox(obj);
     const pad = 6;
     const x = b.x * v.scale + v.tx - pad;
@@ -351,6 +369,23 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       return;
     }
     if (tool === 'select') {
+      // If a connector is already selected, grabbing near an end drags just that
+      // end (so you can re-route it onto another shape), taking priority over
+      // selecting whatever is underneath.
+      const sel = selected.current ? scene.current.find((o) => o.id === selected.current) : null;
+      if (sel && sel.kind === 'connector') {
+        const gr = ENDPOINT_GRAB_PX / view.current.scale;
+        if (Math.hypot(wp.x - sel.x1, wp.y - sel.y1) <= gr) {
+          action.current = 'endpoint';
+          endDrag.current = { c: sel, end: 'x1' };
+          return;
+        }
+        if (Math.hypot(wp.x - sel.x2, wp.y - sel.y2) <= gr) {
+          action.current = 'endpoint';
+          endDrag.current = { c: sel, end: 'x2' };
+          return;
+        }
+      }
       const hit = topmostAt(wp);
       selected.current = hit ? hit.id : null;
       requestRender();
@@ -475,6 +510,21 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       requestRender();
     } else if (a === 'move') {
       applyMove(wp);
+    } else if (a === 'endpoint' && endDrag.current) {
+      const { c, end } = endDrag.current;
+      const snap = findSnap(wp);
+      const p = snap ? snap.p : wp;
+      if (end === 'x1') {
+        c.x1 = p.x;
+        c.y1 = p.y;
+        c.from = snap ? snap.ref : undefined;
+      } else {
+        c.x2 = p.x;
+        c.y2 = p.y;
+        c.to = snap ? snap.ref : undefined;
+      }
+      snapEnd.current = snap ? snap.p : null;
+      requestRender();
     } else if (a === 'draw' && t?.kind === 'stroke') {
       t.points.push(wp);
     } else if (a === 'shape' && t?.kind === 'shape') {
@@ -506,6 +556,12 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     snapEnd.current = null;
     if (a === 'move') {
       endMove();
+      return;
+    }
+    if (a === 'endpoint') {
+      const ed = endDrag.current;
+      endDrag.current = null;
+      if (ed) broadcast(ed.c);
       return;
     }
     if (!a || !t) return;

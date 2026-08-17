@@ -48,8 +48,9 @@ make dev          # builds the React UI, then serves it + the gateway on :8080
 
 Open **http://localhost:8080** in two browser windows, keep the board name the same, and
 draw — shapes, connectors, ink, cursors, and presence all sync live. **Select** a shape and
-drag it; attached connectors **stay glued to its edges** and follow. Connectors **snap to
-shape edges** as you draw them. Scroll (or two-finger drag) to pan; pinch or **⌘/Ctrl-scroll**
+drag it; attached connectors **stay glued to its edges** and follow. Select a connector and
+**drag either end onto a shape** to attach or re-route it. Connectors **snap to shape edges**
+as you draw them. Scroll (or two-finger drag) to pan; pinch or **⌘/Ctrl-scroll**
 to zoom; Space-drag pans with any tool. Toggle **light/dark** from the toolbar (it follows
 your OS by default).
 
