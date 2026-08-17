@@ -76,11 +76,16 @@ export interface CursorMsg {
 
 export type ServerMsg = HelloMsg | AddMsg | EraseMsg | ClearMsg | CursorMsg;
 
-// Pen/shape palette — tuned to read on the neutral (light) board: an ink default,
-// a few everyday diagram colors, and the brand gold + forest. Any other color is
-// a click away via the custom picker.
+// The default "ink" is a theme-adaptive sentinel: objects drawn with it store
+// the string 'ink', and each client renders it in its own theme's foreground —
+// so the default is always readable, for every collaborator, whatever theme
+// they're in. Any explicit swatch or picker stores a real hex instead.
+export const INK = 'ink';
+export const INK_HEX = { light: '#26312b', dark: '#e9ede9' } as const;
+
+// The rest of the palette reads on both light and dark boards. Any other color
+// is a click away via the custom picker.
 export const PALETTE = [
-  '#26312b', // ink (default)
   '#5b6b62', // slate
   '#d1495b', // red
   '#e08a3c', // amber
@@ -90,7 +95,7 @@ export const PALETTE = [
   '#8257c5', // violet
 ];
 
-export const DEFAULT_COLOR = '#26312b'; // ink
+export const DEFAULT_COLOR = INK;
 
 // Identity colors for cursors/avatars — saturated hues that pop on a light board
 // and carry white label text well.

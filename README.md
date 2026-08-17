@@ -47,9 +47,11 @@ make dev          # builds the React UI, then serves it + the gateway on :8080
 ```
 
 Open **http://localhost:8080** in two browser windows, keep the board name the same, and
-draw — shapes, connectors, ink, cursors, and presence all sync live. Connectors **snap to
-shape edges**. Scroll (or two-finger drag) to pan; pinch or **⌘/Ctrl-scroll** to zoom;
-Space-drag pans with any tool.
+draw — shapes, connectors, ink, cursors, and presence all sync live. **Select** a shape and
+drag it; attached connectors **stay glued to its edges** and follow. Connectors **snap to
+shape edges** as you draw them. Scroll (or two-finger drag) to pan; pinch or **⌘/Ctrl-scroll**
+to zoom; Space-drag pans with any tool. Toggle **light/dark** from the toolbar (it follows
+your OS by default).
 
 ## See it scale across nodes
 
@@ -79,9 +81,10 @@ go run loadtest/catchup_check.go  # history survives across nodes + reconnect
 ## Status
 
 See the [build steps in ARCHITECTURE.md](ARCHITECTURE.md#build-steps).
-Working today: a polished diagram canvas (shapes, edge-snapping connectors, eraser,
-infinite zoom/pan) in a documented [design system](DESIGN.md), multi-node fan-out
-(Redis), durable cross-node catch-up (Postgres), Kubernetes on `kind`, and a
+Working today: a polished diagram canvas (select/move with connector re-routing,
+shapes, edge-snapping connectors, eraser, infinite zoom/pan, light/dark) in a
+documented [design system](DESIGN.md), multi-node fan-out (Redis), durable
+cross-node catch-up (Postgres), Kubernetes on `kind`, and a
 [published load test](loadtest/RESULTS.md).
 Next: a GraphQL control plane (accounts, board list).
 

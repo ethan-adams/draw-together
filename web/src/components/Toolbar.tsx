@@ -1,19 +1,23 @@
-import { PALETTE } from '../lib/protocol';
+import { INK, PALETTE } from '../lib/protocol';
 import { TOOLS, Tool } from '../lib/tools';
+import { Theme } from '../lib/useTheme';
 
-type IconId = Tool | 'zin' | 'zout' | 'reset' | 'clear';
+type IconId = Tool | 'zin' | 'zout' | 'reset' | 'clear' | 'sun' | 'moon';
 
 interface Props {
   tool: Tool;
   setTool: (t: Tool) => void;
   color: string;
   setColor: (c: string) => void;
+  inkHex: string;
   width: number;
   setWidth: (w: number) => void;
   zoom: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
   onClear: () => void;
 }
 
@@ -22,14 +26,18 @@ export function Toolbar({
   setTool,
   color,
   setColor,
+  inkHex,
   width,
   setWidth,
   zoom,
   onZoomIn,
   onZoomOut,
   onZoomReset,
+  theme,
+  onToggleTheme,
   onClear,
 }: Props) {
+  const shown = color === INK ? inkHex : color;
   return (
     <div className="toolbar">
       <div className="brand">
@@ -57,6 +65,12 @@ export function Toolbar({
       <div className="divider" />
 
       <div className="swatches">
+        <button
+          className={'swatch' + (color === INK ? ' active' : '')}
+          style={{ background: inkHex }}
+          onClick={() => setColor(INK)}
+          aria-label="ink color"
+        />
         {PALETTE.map((c) => (
           <button
             key={c}
@@ -67,15 +81,15 @@ export function Toolbar({
           />
         ))}
         <label className="swatch custom" title="Pick any color" aria-label="custom color">
-          <span className="swatch-dot" style={{ background: color }} />
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+          <span className="swatch-dot" style={{ background: shown }} />
+          <input type="color" value={shown} onChange={(e) => setColor(e.target.value)} />
         </label>
       </div>
       <div className="divider" />
 
       <label className="width" title="Stroke width">
         <input type="range" min={1} max={24} value={width} onChange={(e) => setWidth(Number(e.target.value))} />
-        <span className="width-preview" style={{ width: width, height: width, background: color }} />
+        <span className="width-preview" style={{ width: width, height: width, background: shown }} />
       </label>
       <div className="divider" />
 
@@ -90,6 +104,16 @@ export function Toolbar({
           <Icon id="zin" />
         </button>
       </div>
+      <div className="divider" />
+
+      <button
+        className="icon-btn"
+        onClick={onToggleTheme}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        <Icon id={theme === 'dark' ? 'sun' : 'moon'} />
+      </button>
       <div className="divider" />
 
       <button className="btn" onClick={onClear} title="Clear the board for everyone">
@@ -114,6 +138,8 @@ function Icon({ id }: { id: IconId }) {
     </svg>
   );
   switch (id) {
+    case 'select':
+      return svg(<path d="M5 3l5.6 15 2.2-6.2 6.2-2.2z" />);
     case 'pan':
       return svg(
         <>
@@ -159,6 +185,15 @@ function Icon({ id }: { id: IconId }) {
       );
     case 'reset':
       return svg(<path d="M3 9V4h5M21 15v5h-5M21 9a9 9 0 0 0-15-3M3 15a9 9 0 0 0 15 3" />);
+    case 'sun':
+      return svg(
+        <>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19" />
+        </>,
+      );
+    case 'moon':
+      return svg(<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />);
     case 'clear':
       return svg(<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />);
   }

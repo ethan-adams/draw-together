@@ -20,6 +20,14 @@ principles, one material rule, and a single token file everything reads from.
 5. **Motion is a nudge.** 120–200ms, one easing curve (`--ease`). Enough to feel
    responsive, never enough to wait on.
 
+**Light and dark** fall straight out of this: the same semantic tokens are
+redefined once for dark, so the whole product — board included — flips by
+following the OS preference (with a manual toggle to override). The board stays a
+*neutral* dark, not a brand-colored one, and the default "ink" is a theme-adaptive
+sentinel that each client resolves to its own foreground, so a shape one person
+draws in light mode is still readable for a collaborator in dark mode. That is the
+payoff of tokens over a hand-painted theme.
+
 ## The two-material model
 
 Every surface is exactly one of these:

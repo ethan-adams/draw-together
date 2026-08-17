@@ -4,14 +4,16 @@ import { Toolbar } from './components/Toolbar';
 import { Presence } from './components/Presence';
 import { StatusPill } from './components/StatusPill';
 import { useDraw } from './lib/useDraw';
-import { DEFAULT_COLOR } from './lib/protocol';
+import { useTheme } from './lib/useTheme';
+import { INK, INK_HEX } from './lib/protocol';
 import { Tool } from './lib/tools';
 
 export default function App() {
   const board = useMemo(() => new URLSearchParams(location.search).get('board') || 'welcome', []);
 
-  const [tool, setTool] = useState<Tool>('pen');
-  const [color, setColor] = useState(DEFAULT_COLOR);
+  const [theme, setTheme] = useTheme();
+  const [tool, setTool] = useState<Tool>('select');
+  const [color, setColor] = useState<string>(INK);
   const [width, setWidth] = useState(4);
   const [zoom, setZoom] = useState(1);
   const canvas = useRef<CanvasHandle>(null);
@@ -36,12 +38,15 @@ export default function App() {
           setTool={setTool}
           color={color}
           setColor={setColor}
+          inkHex={INK_HEX[theme]}
           width={width}
           setWidth={setWidth}
           zoom={zoom}
           onZoomIn={() => canvas.current?.zoomIn()}
           onZoomOut={() => canvas.current?.zoomOut()}
           onZoomReset={() => canvas.current?.resetView()}
+          theme={theme}
+          onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           onClear={clear}
         />
         <div className="top-right">
@@ -55,6 +60,7 @@ export default function App() {
         tool={tool}
         color={color}
         width={width}
+        theme={theme}
         peers={peers}
         onAdd={sendAdd}
         onErase={sendErase}
