@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { INK, PALETTE } from '../lib/protocol';
 import { TOOLS, Tool } from '../lib/tools';
 import { Theme } from '../lib/useTheme';
@@ -38,6 +39,18 @@ export function Toolbar({
   onClear,
 }: Props) {
   const shown = color === INK ? inkHex : color;
+  const [styleOpen, setStyleOpen] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!styleOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (styleRef.current && !styleRef.current.contains(e.target as Node)) setStyleOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [styleOpen]);
+
   return (
     <div className="toolbar">
       <div className="brand">
@@ -64,33 +77,47 @@ export function Toolbar({
       </div>
       <div className="divider" />
 
-      <div className="swatches">
+      {/* Color + width collapse into one popover so the bar stays a single row. */}
+      <div className="style" ref={styleRef}>
         <button
-          className={'swatch' + (color === INK ? ' active' : '')}
-          style={{ background: inkHex }}
-          onClick={() => setColor(INK)}
-          aria-label="ink color"
-        />
-        {PALETTE.map((c) => (
-          <button
-            key={c}
-            className={'swatch' + (c === color ? ' active' : '')}
-            style={{ background: c }}
-            onClick={() => setColor(c)}
-            aria-label={`color ${c}`}
-          />
-        ))}
-        <label className="swatch custom" title="Pick any color" aria-label="custom color">
-          <span className="swatch-dot" style={{ background: shown }} />
-          <input type="color" value={shown} onChange={(e) => setColor(e.target.value)} />
-        </label>
+          className="style-trigger"
+          onClick={() => setStyleOpen((v) => !v)}
+          title="Color & stroke width"
+          aria-label="Color and width"
+          aria-expanded={styleOpen}
+        >
+          <span className="style-dot" style={{ background: shown }} />
+        </button>
+        {styleOpen && (
+          <div className="style-pop">
+            <div className="swatches">
+              <button
+                className={'swatch' + (color === INK ? ' active' : '')}
+                style={{ background: inkHex }}
+                onClick={() => setColor(INK)}
+                aria-label="ink color"
+              />
+              {PALETTE.map((c) => (
+                <button
+                  key={c}
+                  className={'swatch' + (c === color ? ' active' : '')}
+                  style={{ background: c }}
+                  onClick={() => setColor(c)}
+                  aria-label={`color ${c}`}
+                />
+              ))}
+              <label className="swatch custom" title="Pick any color" aria-label="custom color">
+                <span className="swatch-dot" style={{ background: shown }} />
+                <input type="color" value={shown} onChange={(e) => setColor(e.target.value)} />
+              </label>
+            </div>
+            <label className="width" title="Stroke width">
+              <input type="range" min={1} max={24} value={width} onChange={(e) => setWidth(Number(e.target.value))} />
+              <span className="width-preview" style={{ width: width, height: width, background: shown }} />
+            </label>
+          </div>
+        )}
       </div>
-      <div className="divider" />
-
-      <label className="width" title="Stroke width">
-        <input type="range" min={1} max={24} value={width} onChange={(e) => setWidth(Number(e.target.value))} />
-        <span className="width-preview" style={{ width: width, height: width, background: shown }} />
-      </label>
       <div className="divider" />
 
       <div className="zoom">
@@ -114,11 +141,9 @@ export function Toolbar({
       >
         <Icon id={theme === 'dark' ? 'sun' : 'moon'} />
       </button>
-      <div className="divider" />
 
-      <button className="btn" onClick={onClear} title="Clear the board for everyone">
+      <button className="icon-btn" onClick={onClear} title="Clear the board for everyone" aria-label="Clear the board">
         <Icon id="clear" />
-        <span>Clear</span>
       </button>
     </div>
   );
