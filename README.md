@@ -1,8 +1,9 @@
 # LiveBoard
 
-A real-time collaborative whiteboard built to scale **horizontally**: any number of
-stateless gateway nodes serve one shared board, and an edit made on one node reaches
-everyone on every other node.
+A real-time collaborative **diagram canvas** built to scale **horizontally**: sketch
+shapes, connectors, and freehand ink on a shared, infinite board — and any number of
+stateless gateway nodes serve it, so an edit made on one node reaches everyone on
+every other node.
 
 ![LiveBoard — two people drawing on one shared board in real time, with live cursors and presence](docs/demo.gif)
 
@@ -17,19 +18,21 @@ Full method, numbers, and bottleneck analysis: **[loadtest/RESULTS.md](loadtest/
 - **Stateless fan-out.** Gateway nodes hold no authoritative state. Membership and
   cross-node delivery run through Redis pub/sub, so you scale by adding replicas — no
   sticky sessions, no node is special.
-- **Two transports on purpose.** GraphQL handles the cold path (sign in, list boards,
-  load a snapshot). Raw WebSocket handles the hot path (cursors and strokes at pointer
-  speed). The [decision doc](DECISIONS.md) explains why the 60fps stream does **not** go
-  through GraphQL subscriptions.
-- **Convergence, not locking.** Concurrent edits resolve with a per-object last-write-wins
-  CRDT, so two people editing the same shape end up in the same state without a coordinator.
-- **Fast catch-up.** A late joiner loads a snapshot plus the tail of an op log instead of
-  replaying all of history.
+- **Two transports on purpose.** Raw WebSocket carries the hot path today — cursors,
+  shapes, and ink at pointer speed. A GraphQL control plane (sign in, list/load boards)
+  is the planned cold path. The [decision doc](DECISIONS.md) explains why the 60fps
+  stream does **not** go through GraphQL subscriptions.
+- **Ordered op log, not locking.** Every change is an id'd operation — add an object,
+  erase objects, clear — relayed to peers and appended to a per-board log. A late joiner,
+  on any node, replays that log to reach the exact same board, with no coordinator.
+- **Fast catch-up.** A late joiner replays the board's op log (snapshot compaction is a
+  planned optimization) instead of re-deriving state from scratch.
 
 ## Stack
 
-Go (WebSocket gateway) · Redis (pub/sub + presence) · Postgres (snapshots + op log) ·
-GraphQL (control plane) · React + Canvas (client) · Kubernetes on `kind` · k6 (load test).
+Go (WebSocket gateway) · Redis (pub/sub + presence) · Postgres (op log) ·
+React + TypeScript + Canvas (client) · Kubernetes on `kind` · k6 (load test) ·
+GraphQL control plane (planned).
 
 ## Quick start (single node)
 
@@ -40,7 +43,8 @@ make dev          # builds the React UI, then serves it + the gateway on :8080
 ```
 
 Open **http://localhost:8080** in two browser windows, keep the board name the same, and
-draw — strokes, cursors, and presence sync live.
+draw — shapes, connectors, ink, cursors, and presence all sync live. Scroll to zoom,
+Space-drag to pan.
 
 ## See it scale across nodes
 
@@ -70,9 +74,10 @@ go run loadtest/catchup_check.go  # history survives across nodes + reconnect
 ## Status
 
 See the [build steps in ARCHITECTURE.md](ARCHITECTURE.md#build-steps).
-Working today: multi-node fan-out (Redis), durable cross-node catch-up (Postgres),
+Working today: a polished diagram canvas (shapes, connectors, eraser, infinite
+zoom/pan), multi-node fan-out (Redis), durable cross-node catch-up (Postgres),
 Kubernetes on `kind`, and a [published load test](loadtest/RESULTS.md).
-Next: a GraphQL control plane (accounts, board list) and a React UI.
+Next: a GraphQL control plane (accounts, board list).
 
 ## License
 

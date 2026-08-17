@@ -52,10 +52,14 @@ clients. No node owns the board, so adding replicas just adds capacity.
 
 ## State model
 
-- **Op log:** the ordered stream of edits for a board.
+- **Op log:** the ordered stream of edits for a board — each an id'd operation (`add` an
+  object, `erase` objects, `clear`). Relayed to peers and appended per board; a late joiner
+  replays it to reach the current board. The client holds the board as a retained scene of
+  objects and draws it through a pan/zoom lens (so it survives resize and scales infinitely).
 - **Snapshot:** a periodic materialization so a late joiner loads current state + a short
-  tail instead of replaying everything.
-- **CRDT:** per-object last-write-wins so concurrent edits converge without a lock.
+  tail instead of replaying everything. *(planned optimization)*
+- **CRDT:** per-object last-write-wins so two people editing the *same* object converge
+  without a lock. *(planned — step 5)*
 
 ## Build steps
 
@@ -68,4 +72,9 @@ clients. No node owns the board, so adding replicas just adds capacity.
 6. ✅ Kubernetes on `kind` — 3-node cluster, 3 stateless gateway replicas (HPA manifest
    included; needs metrics-server)
 7. ✅ k6 load test + published results — see [loadtest/RESULTS.md](loadtest/RESULTS.md)
-8. 🔧 Finishing kit — React UI ✅ · ADRs ✅ · hero screenshot ✅ · two-node gif still to record
+8. ✅ Diagram canvas (React + TypeScript) — a retained scene drawn through a pan/zoom
+   lens: shapes, connectors, freehand, and an eraser; infinite zoom/pan; survives resize
+9. ✅ One-command production deploy — the whole stack on one host behind Caddy with
+   automatic HTTPS (see [`deploy/prod`](deploy/prod))
+10. 🔧 Finishing kit — ADRs ✅ · screenshots ✅ · load test ✅; a two-node collaboration
+    gif is the last polish
