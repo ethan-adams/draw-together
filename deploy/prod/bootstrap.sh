@@ -7,14 +7,14 @@
 # Run as root (or with sudo) on the server:
 #
 #   export DRAW_DOMAIN=board.example.com
-#   curl -fsSL https://raw.githubusercontent.com/ethan-adams/draw/main/deploy/prod/bootstrap.sh | sudo -E bash
+#   curl -fsSL https://raw.githubusercontent.com/ethan-adams/draw-together/main/deploy/prod/bootstrap.sh | sudo -E bash
 #
 # Point DRAW_DOMAIN's DNS (an A record) at this server's public IP first,
 # so Caddy can obtain a certificate the moment it starts.
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/ethan-adams/draw.git}"
-APP_DIR="${APP_DIR:-/opt/draw}"
+REPO_URL="${REPO_URL:-https://github.com/ethan-adams/draw-together.git}"
+APP_DIR="${APP_DIR:-/opt/draw-together}"
 : "${DRAW_DOMAIN:?set DRAW_DOMAIN=your.domain first}"
 
 echo "==> Installing Docker + basics"

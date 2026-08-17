@@ -1,4 +1,4 @@
-module github.com/ethan-adams/draw
+module github.com/ethan-adams/draw-together
 
 go 1.25.0
 

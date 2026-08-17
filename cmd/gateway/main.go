@@ -15,8 +15,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ethan-adams/draw/internal/hub"
-	"github.com/ethan-adams/draw/internal/store"
+	"github.com/ethan-adams/draw-together/internal/hub"
+	"github.com/ethan-adams/draw-together/internal/store"
 )
 
 func main() {
