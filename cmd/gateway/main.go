@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/ethan-adams/draw-together/internal/gql"
 	"github.com/ethan-adams/draw-together/internal/hub"
 	"github.com/ethan-adams/draw-together/internal/store"
@@ -69,7 +68,7 @@ func main() {
 	})
 	// Cold path: the GraphQL control plane (list/create boards) + a playground.
 	mux.Handle("/graphql", gql.NewServer(registry))
-	mux.Handle("/graphql/playground", playground.Handler("Draw", "/graphql"))
+	mux.Handle("/graphql/playground", gql.PlaygroundHandler())
 	mux.Handle("/", http.FileServer(http.Dir(*webDir)))
 
 	log.Printf("draw gateway listening on %s (serving %q)", *addr, *webDir)

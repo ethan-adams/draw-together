@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { AnchorRef, Connector, Point, SceneObject, Shape, newObjectId } from '../lib/protocol';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Connector, EndRef, Point, SceneObject, Shape, Text, newObjectId } from '../lib/protocol';
 import { Tool } from '../lib/tools';
 import { Peer } from '../lib/useDraw';
 
@@ -27,26 +27,39 @@ interface Props {
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 6;
 const GRID = 28;
-const SNAP_PX = 12; // endpoint snaps to a shape anchor within this screen distance
 const ENDPOINT_GRAB_PX = 12; // click within this of a selected connector's end to drag it
-const ANCHOR_REVEAL_PX = 46; // shape anchors fade in when the cursor gets this close
-const ACCENT = 'rgba(47, 158, 99, 0.92)'; // forest — anchor dots
-const SNAP_GOLD = 'rgba(212, 175, 55, 0.95)'; // gold — the active snap target / selection
+const BIND_MARGIN_PX = 8; // a connector end binds to a shape if dropped within this of it
+const SNAP_GOLD = 'rgba(212, 175, 55, 0.95)'; // gold — selection + bind highlight
+const TEXT_SIZE = 18; // default standalone text size (world units)
+const LABEL_SIZE = 16; // shape label size (world units)
+const FONT = "Inter, ui-sans-serif, system-ui, sans-serif";
 
 type ActionKind = 'draw' | 'shape' | 'connector' | 'erase' | 'pan' | 'move' | 'endpoint';
 
-// A live move: the object being dragged, a snapshot of its start geometry, and
-// (for shapes) the connectors whose endpoints must follow it.
 interface MoveState {
   start: Point;
   obj: SceneObject;
+  moved: boolean;
   orig: { x?: number; y?: number; x1?: number; y1?: number; x2?: number; y2?: number; points?: Point[] };
-  attached: { c: Connector; end: 'from' | 'to' }[];
+}
+
+interface Editing {
+  id: string;
+  kind: 'shape' | 'text';
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  fontPx: number;
+  center: boolean;
+  value: string;
+  isNew: boolean;
 }
 
 export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(props, ref) {
   const mainRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
+  const editRef = useRef<HTMLTextAreaElement>(null);
   const mctx = useRef<CanvasRenderingContext2D | null>(null);
   const octx = useRef<CanvasRenderingContext2D | null>(null);
 
@@ -65,11 +78,14 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
   const panStart = useRef({ sx: 0, sy: 0, tx: 0, ty: 0 });
   const erased = useRef<Set<string>>(new Set());
   const spaceDown = useRef(false);
-  const pointerWorld = useRef<Point | null>(null); // for connector anchor hints
-  const snapEnd = useRef<Point | null>(null); // the anchor the live connector is snapping to
+  const pointerWorld = useRef<Point | null>(null);
   const selected = useRef<string | null>(null);
   const move = useRef<MoveState | null>(null);
   const endDrag = useRef<{ c: Connector; end: 'x1' | 'x2' } | null>(null);
+
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const editingRef = useRef<Editing | null>(null);
+  editingRef.current = editing;
 
   const requestRender = () => {
     dirty.current = true;
@@ -78,34 +94,53 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     const v = view.current;
     return { x: (sx - v.tx) / v.scale, y: (sy - v.ty) / v.scale };
   };
+  const toScreen = (p: Point) => {
+    const v = view.current;
+    return { x: p.x * v.scale + v.tx, y: p.y * v.scale + v.ty };
+  };
   const screenPos = (e: { clientX: number; clientY: number }) => {
     const r = mainRef.current!.getBoundingClientRect();
     return { sx: e.clientX - r.left, sy: e.clientY - r.top };
   };
 
-  // Snap: the four edge-midpoint anchors of a shape, and the nearest one to a point.
-  const findSnap = (wp: Point): { p: Point; ref: AnchorRef } | null => {
-    const thr = SNAP_PX / view.current.scale;
-    let best: { p: Point; ref: AnchorRef } | null = null;
-    let bestD = thr;
-    for (const o of scene.current) {
+  // ---- shape geometry for floating connections ----
+  const findShape = (id: string): Shape | undefined => {
+    const o = scene.current.find((s) => s.id === id);
+    return o && o.kind === 'shape' ? o : undefined;
+  };
+  const shapeAt = (wp: Point, marginPx = 0): Shape | null => {
+    const m = marginPx / view.current.scale;
+    for (let i = scene.current.length - 1; i >= 0; i--) {
+      const o = scene.current[i];
       if (o.kind !== 'shape') continue;
-      const as = shapeAnchors(o);
-      for (let i = 0; i < as.length; i++) {
-        const d = Math.hypot(wp.x - as[i].x, wp.y - as[i].y);
-        if (d <= bestD) {
-          bestD = d;
-          best = { p: as[i], ref: { id: o.id, anchor: i } };
-        }
-      }
+      const n = normalizeShape(o);
+      if (wp.x >= n.x - m && wp.x <= n.x + n.w + m && wp.y >= n.y - m && wp.y <= n.y + n.h + m) return o;
     }
-    return best;
+    return null;
+  };
+  // Derived connector endpoints: a bound end sits on its shape's border facing
+  // the other end, so it tracks the shape as it moves. Unbound ends use x1..y2.
+  const resolveEnds = (c: Connector) => {
+    const fs = c.from ? findShape(c.from.id) : undefined;
+    const ts = c.to ? findShape(c.to.id) : undefined;
+    let a = { x: c.x1, y: c.y1 };
+    let b = { x: c.x2, y: c.y2 };
+    if (fs) a = borderPoint(fs, ts ? shapeCenter(ts) : b);
+    if (ts) b = borderPoint(ts, fs ? shapeCenter(fs) : a);
+    return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
   };
 
+  const hitObject = (o: SceneObject, wp: Point, pad: number): boolean => {
+    if (o.kind === 'connector') {
+      const e = resolveEnds(o);
+      return distToSeg(wp, { x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 }) <= pad + o.width / 2;
+    }
+    return hitTest(o, wp, pad);
+  };
   const topmostAt = (wp: Point): SceneObject | null => {
     const pad = 6 / view.current.scale;
     for (let i = scene.current.length - 1; i >= 0; i--) {
-      if (hitTest(scene.current[i], wp, pad)) return scene.current[i];
+      if (hitObject(scene.current[i], wp, pad)) return scene.current[i];
     }
     return null;
   };
@@ -121,7 +156,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     propsRef.current.onErase([id]);
   };
 
-  // ---- fit / resize (repaints from the retained scene, so resize never wipes it) ----
+  // ---- fit / resize ----
   useEffect(() => {
     const fit = () => {
       const m = mainRef.current;
@@ -145,19 +180,17 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     return () => window.removeEventListener('resize', fit);
   }, []);
 
-  // Re-read the grid color and repaint when the theme flips.
   useEffect(() => {
     gridColor.current = cssVar('--board-grid', gridColor.current);
     requestRender();
   }, [props.theme]);
 
-  // Switching tools clears the current selection.
   useEffect(() => {
     selected.current = null;
     requestRender();
   }, [props.tool]);
 
-  // ---- non-passive wheel: pan (two-finger), zoom (pinch / ⌘+wheel) ----
+  // ---- wheel: pan / pinch-zoom ----
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
@@ -167,7 +200,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
         const { sx, sy } = screenPos(e);
         zoomAt(sx, sy, Math.exp(-e.deltaY * 0.0015));
       } else {
-        const k = e.deltaMode === 1 ? 16 : 1; // line vs pixel deltas
+        const k = e.deltaMode === 1 ? 16 : 1;
         view.current.tx -= e.deltaX * k;
         view.current.ty -= e.deltaY * k;
         requestRender();
@@ -177,9 +210,10 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  // ---- keyboard: Space = temp pan, Delete/Backspace = remove selection ----
+  // ---- keyboard ----
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      if (editingRef.current) return; // typing in the text editor
       if (e.code === 'Space') spaceDown.current = true;
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const el = document.activeElement;
@@ -235,7 +269,10 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     drawGrid(ctx);
     worldTransform(ctx);
     const ink = cssVar('--on-board', '#26312b');
-    for (const obj of scene.current) drawObject(ctx, obj, ink);
+    for (const obj of scene.current) {
+      if (editingRef.current && editingRef.current.id === obj.id) continue; // hidden while editing
+      drawObject(ctx, obj, ink, obj.kind === 'connector' ? resolveEnds(obj) : undefined);
+    }
   };
 
   const renderOverlay = () => {
@@ -244,50 +281,32 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const v = view.current;
+    const ink = cssVar('--on-board', '#26312b');
     if (temp.current) {
       worldTransform(ctx);
-      drawObject(ctx, temp.current, cssVar('--on-board', '#26312b'));
+      const t = temp.current;
+      drawObject(ctx, t, ink, t.kind === 'connector' ? resolveEnds(t) : undefined);
     }
     screenTransform(ctx);
-    if (propsRef.current.tool === 'connector' || action.current === 'endpoint') drawSnapHints(ctx);
+    if (propsRef.current.tool === 'connector' || action.current === 'endpoint') drawBindHint(ctx);
     drawSelection(ctx);
     for (const peer of Object.values(propsRef.current.peers)) {
       drawCursor(ctx, peer.x * v.scale + v.tx, peer.y * v.scale + v.ty, peer.color, peer.name);
     }
   };
 
-  const drawSnapHints = (ctx: CanvasRenderingContext2D) => {
-    const v = view.current;
+  const drawBindHint = (ctx: CanvasRenderingContext2D) => {
     const wp = pointerWorld.current;
-    const toScreen = (p: Point) => ({ x: p.x * v.scale + v.tx, y: p.y * v.scale + v.ty });
-    if (wp) {
-      const reveal = ANCHOR_REVEAL_PX / v.scale;
-      for (const o of scene.current) {
-        if (o.kind !== 'shape') continue;
-        const as = shapeAnchors(o);
-        if (!as.some((a) => Math.hypot(wp.x - a.x, wp.y - a.y) <= reveal)) continue;
-        for (const a of as) {
-          const s = toScreen(a);
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = ACCENT;
-          ctx.fill();
-          ctx.lineWidth = 1.5;
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.stroke();
-        }
-      }
-    }
-    if (snapEnd.current) {
-      const s = toScreen(snapEnd.current);
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = SNAP_GOLD;
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#fff';
-      ctx.stroke();
-    }
+    if (!wp) return;
+    const s = shapeAt(wp, BIND_MARGIN_PX);
+    if (!s) return;
+    const v = view.current;
+    const n = normalizeShape(s);
+    ctx.save();
+    ctx.strokeStyle = SNAP_GOLD;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(n.x * v.scale + v.tx, n.y * v.scale + v.ty, n.w * v.scale, n.h * v.scale);
+    ctx.restore();
   };
 
   const drawSelection = (ctx: CanvasRenderingContext2D) => {
@@ -295,15 +314,12 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     if (!id) return;
     const obj = scene.current.find((o) => o.id === id);
     if (!obj) return;
-    const v = view.current;
     if (obj.kind === 'connector') {
-      // Draggable endpoint handles — grab one to re-route the connector.
-      for (const [ex, ey] of [
-        [obj.x1, obj.y1],
-        [obj.x2, obj.y2],
-      ]) {
+      const e = resolveEnds(obj);
+      for (const p of [{ x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 }]) {
+        const s = toScreen(p);
         ctx.beginPath();
-        ctx.arc(ex * v.scale + v.tx, ey * v.scale + v.ty, 5, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = SNAP_GOLD;
         ctx.fill();
         ctx.lineWidth = 2;
@@ -313,6 +329,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       return;
     }
     const b = objBBox(obj);
+    const v = view.current;
     const pad = 6;
     const x = b.x * v.scale + v.tx - pad;
     const y = b.y * v.scale + v.ty - pad;
@@ -325,12 +342,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     ctx.strokeRect(x, y, w, h);
     ctx.setLineDash([]);
     ctx.fillStyle = '#fff';
-    for (const [hx, hy] of [
-      [x, y],
-      [x + w, y],
-      [x, y + h],
-      [x + w, y + h],
-    ]) {
+    for (const [hx, hy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
       ctx.beginPath();
       ctx.rect(hx - 3, hy - 3, 6, 6);
       ctx.fill();
@@ -357,8 +369,93 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     }
   };
 
+  // ---- text editing ----
+  const beginEditShape = (s: Shape) => {
+    const v = view.current;
+    const n = normalizeShape(s);
+    setEditing({
+      id: s.id,
+      kind: 'shape',
+      left: n.x * v.scale + v.tx,
+      top: n.y * v.scale + v.ty,
+      width: n.w * v.scale,
+      height: n.h * v.scale,
+      fontPx: LABEL_SIZE * v.scale,
+      center: true,
+      value: s.text ?? '',
+      isNew: false,
+    });
+  };
+  const beginEditText = (t: Text, isNew: boolean) => {
+    const v = view.current;
+    const s = toScreen({ x: t.x, y: t.y });
+    setEditing({
+      id: t.id,
+      kind: 'text',
+      left: s.x,
+      top: s.y,
+      width: Math.max(160, 240 * v.scale),
+      height: Math.max(t.size * 1.4 * v.scale, 28),
+      fontPx: t.size * v.scale,
+      center: false,
+      value: t.text,
+      isNew,
+    });
+  };
+  const commitEdit = () => {
+    const e = editingRef.current;
+    if (!e) return;
+    const value = e.value.trim();
+    const obj = scene.current.find((o) => o.id === e.id);
+    if (obj) {
+      if (obj.kind === 'text' || obj.kind === 'shape') {
+        if (obj.kind === 'text' && value === '') {
+          scene.current = scene.current.filter((o) => o.id !== e.id);
+          if (!e.isNew) propsRef.current.onErase([e.id]);
+        } else {
+          obj.text = value;
+          broadcast(obj);
+        }
+      }
+    }
+    setEditing(null);
+    requestRender();
+  };
+
   // ---- pointer handling ----
+  const onDoubleClick = (ev: React.MouseEvent) => {
+    const { sx, sy } = screenPos(ev);
+    const wp = toWorld(sx, sy);
+    const s = shapeAt(wp);
+    if (s) {
+      beginEditShape(s);
+      return;
+    }
+    const t = topmostAt(wp);
+    if (t && t.kind === 'text') beginEditText(t, false);
+  };
+
+  // Text is created on click (after mouseup) so the click's own pointerup can't
+  // blur the fresh editor and commit it empty.
+  const onClick = (ev: React.MouseEvent) => {
+    if (propsRef.current.tool !== 'text' || editingRef.current) return;
+    const { sx, sy } = screenPos(ev);
+    const wp = toWorld(sx, sy);
+    const s = shapeAt(wp);
+    if (s) {
+      selected.current = s.id;
+      beginEditShape(s);
+      return;
+    }
+    const t: Text = { id: newObjectId(), kind: 'text', x: wp.x, y: wp.y, text: '', color: propsRef.current.color, size: TEXT_SIZE };
+    scene.current.push(t);
+    selected.current = t.id;
+    beginEditText(t, true);
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
+    if (editingRef.current) commitEdit();
+    if (propsRef.current.tool === 'text') return; // handled in onClick
     mainRef.current?.setPointerCapture(e.pointerId);
     const { sx, sy } = screenPos(e);
     const wp = toWorld(sx, sy);
@@ -369,18 +466,16 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       return;
     }
     if (tool === 'select') {
-      // If a connector is already selected, grabbing near an end drags just that
-      // end (so you can re-route it onto another shape), taking priority over
-      // selecting whatever is underneath.
       const sel = selected.current ? scene.current.find((o) => o.id === selected.current) : null;
       if (sel && sel.kind === 'connector') {
+        const e2 = resolveEnds(sel);
         const gr = ENDPOINT_GRAB_PX / view.current.scale;
-        if (Math.hypot(wp.x - sel.x1, wp.y - sel.y1) <= gr) {
+        if (Math.hypot(wp.x - e2.x1, wp.y - e2.y1) <= gr) {
           action.current = 'endpoint';
           endDrag.current = { c: sel, end: 'x1' };
           return;
         }
-        if (Math.hypot(wp.x - sel.x2, wp.y - sel.y2) <= gr) {
+        if (Math.hypot(wp.x - e2.x2, wp.y - e2.y2) <= gr) {
           action.current = 'endpoint';
           endDrag.current = { c: sel, end: 'x2' };
           return;
@@ -404,19 +499,18 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       temp.current = { id: newObjectId(), kind: 'shape', shape: tool, x: wp.x, y: wp.y, w: 0, h: 0, color, width };
     } else if (tool === 'connector') {
       action.current = 'connector';
-      const snap = findSnap(wp);
-      const s = snap ? snap.p : wp;
+      const s = shapeAt(wp, BIND_MARGIN_PX);
       temp.current = {
         id: newObjectId(),
         kind: 'connector',
-        x1: s.x,
-        y1: s.y,
-        x2: s.x,
-        y2: s.y,
+        x1: wp.x,
+        y1: wp.y,
+        x2: wp.x,
+        y2: wp.y,
         color,
         width,
         arrow: true,
-        from: snap ? snap.ref : undefined,
+        from: s ? { id: s.id } : undefined,
       };
     } else if (tool === 'eraser') {
       action.current = 'erase';
@@ -427,7 +521,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
 
   const beginMove = (obj: SceneObject, wp: Point): MoveState => {
     const orig: MoveState['orig'] = {};
-    if (obj.kind === 'shape') {
+    if (obj.kind === 'shape' || obj.kind === 'text') {
       orig.x = obj.x;
       orig.y = obj.y;
     } else if (obj.kind === 'connector') {
@@ -438,15 +532,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     } else {
       orig.points = obj.points.map((p) => ({ ...p }));
     }
-    const attached: { c: Connector; end: 'from' | 'to' }[] = [];
-    if (obj.kind === 'shape') {
-      for (const o of scene.current) {
-        if (o.kind !== 'connector') continue;
-        if (o.from?.id === obj.id) attached.push({ c: o, end: 'from' });
-        if (o.to?.id === obj.id) attached.push({ c: o, end: 'to' });
-      }
-    }
-    return { start: wp, obj, orig, attached };
+    return { start: wp, obj, moved: false, orig };
   };
 
   const applyMove = (wp: Point) => {
@@ -454,46 +540,22 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     if (!m) return;
     const dx = wp.x - m.start.x;
     const dy = wp.y - m.start.y;
+    if (dx !== 0 || dy !== 0) m.moved = true;
     const o = m.obj;
-    if (o.kind === 'shape') {
+    if (o.kind === 'shape' || o.kind === 'text') {
       o.x = (m.orig.x ?? 0) + dx;
       o.y = (m.orig.y ?? 0) + dy;
-      for (const { c, end } of m.attached) {
-        const a = shapeAnchors(o)[end === 'from' ? c.from!.anchor : c.to!.anchor];
-        if (end === 'from') {
-          c.x1 = a.x;
-          c.y1 = a.y;
-        } else {
-          c.x2 = a.x;
-          c.y2 = a.y;
-        }
-      }
     } else if (o.kind === 'connector') {
       o.x1 = (m.orig.x1 ?? 0) + dx;
       o.y1 = (m.orig.y1 ?? 0) + dy;
       o.x2 = (m.orig.x2 ?? 0) + dx;
       o.y2 = (m.orig.y2 ?? 0) + dy;
-      o.from = undefined; // hand-placed now
+      o.from = undefined;
       o.to = undefined;
     } else {
       o.points = (m.orig.points ?? []).map((p) => ({ x: p.x + dx, y: p.y + dy }));
     }
     requestRender();
-  };
-
-  const endMove = () => {
-    const m = move.current;
-    move.current = null;
-    if (!m) return;
-    const sent = new Set<string>();
-    broadcast(m.obj);
-    sent.add(m.obj.id);
-    for (const { c } of m.attached) {
-      if (!sent.has(c.id)) {
-        broadcast(c);
-        sent.add(c.id);
-      }
-    }
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -512,18 +574,16 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       applyMove(wp);
     } else if (a === 'endpoint' && endDrag.current) {
       const { c, end } = endDrag.current;
-      const snap = findSnap(wp);
-      const p = snap ? snap.p : wp;
+      const s = shapeAt(wp, BIND_MARGIN_PX);
       if (end === 'x1') {
-        c.x1 = p.x;
-        c.y1 = p.y;
-        c.from = snap ? snap.ref : undefined;
+        c.x1 = wp.x;
+        c.y1 = wp.y;
+        c.from = s ? { id: s.id } : undefined;
       } else {
-        c.x2 = p.x;
-        c.y2 = p.y;
-        c.to = snap ? snap.ref : undefined;
+        c.x2 = wp.x;
+        c.y2 = wp.y;
+        c.to = s ? { id: s.id } : undefined;
       }
-      snapEnd.current = snap ? snap.p : null;
       requestRender();
     } else if (a === 'draw' && t?.kind === 'stroke') {
       t.points.push(wp);
@@ -531,18 +591,11 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       t.w = wp.x - t.x;
       t.h = wp.y - t.y;
     } else if (a === 'connector' && t?.kind === 'connector') {
-      const snap = findSnap(wp);
-      if (snap) {
-        t.x2 = snap.p.x;
-        t.y2 = snap.p.y;
-        t.to = snap.ref;
-        snapEnd.current = snap.p;
-      } else {
-        t.x2 = wp.x;
-        t.y2 = wp.y;
-        t.to = undefined;
-        snapEnd.current = null;
-      }
+      t.x2 = wp.x;
+      t.y2 = wp.y;
+      const s = shapeAt(wp, BIND_MARGIN_PX);
+      t.to = s ? { id: s.id } : undefined;
+      requestRender();
     } else if (a === 'erase') {
       eraseAt(wp);
     }
@@ -553,9 +606,10 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     const t = temp.current;
     action.current = null;
     temp.current = null;
-    snapEnd.current = null;
     if (a === 'move') {
-      endMove();
+      const m = move.current;
+      move.current = null;
+      if (m && m.moved) broadcast(m.obj);
       return;
     }
     if (a === 'endpoint') {
@@ -567,7 +621,11 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     if (!a || !t) return;
     if (a === 'draw' && t.kind === 'stroke' && t.points.length >= 2) commit(t);
     else if (a === 'shape' && t.kind === 'shape' && Math.abs(t.w) > 4 && Math.abs(t.h) > 4) commit(normalizeShape(t));
-    else if (a === 'connector' && t.kind === 'connector' && Math.hypot(t.x2 - t.x1, t.y2 - t.y1) > 6) commit(t);
+    else if (a === 'connector' && t.kind === 'connector') {
+      const bound = t.from || t.to;
+      const selfLoop = t.from && t.to && t.from.id === t.to.id;
+      if (!selfLoop && (bound || Math.hypot(t.x2 - t.x1, t.y2 - t.y1) > 6)) commit(t);
+    }
   };
 
   const commit = (obj: SceneObject) => {
@@ -581,7 +639,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     const hits: string[] = [];
     for (const obj of scene.current) {
       if (erased.current.has(obj.id)) continue;
-      if (hitTest(obj, wp, pad)) {
+      if (hitObject(obj, wp, pad)) {
         hits.push(obj.id);
         erased.current.add(obj.id);
       }
@@ -638,7 +696,15 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
   );
 
   const cursor =
-    props.tool === 'pan' ? 'grab' : props.tool === 'eraser' ? 'cell' : props.tool === 'select' ? 'default' : 'crosshair';
+    props.tool === 'pan'
+      ? 'grab'
+      : props.tool === 'eraser'
+      ? 'cell'
+      : props.tool === 'select'
+      ? 'default'
+      : props.tool === 'text'
+      ? 'text'
+      : 'crosshair';
 
   return (
     <div className="board">
@@ -650,19 +716,55 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
       />
       <canvas ref={overlayRef} className="board-overlay" />
+      {editing && (
+        <textarea
+          ref={editRef}
+          className="text-editor"
+          autoFocus
+          value={editing.value}
+          onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+          onBlur={commitEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              commitEdit();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              commitEdit();
+            }
+          }}
+          style={{
+            left: editing.left,
+            top: editing.top,
+            width: editing.width,
+            height: editing.height,
+            fontSize: editing.fontPx,
+            textAlign: editing.center ? 'center' : 'left',
+          }}
+        />
+      )}
     </div>
   );
 });
 
-// ---------- drawing helpers (assume the given transform) ----------
+// ---------- drawing helpers ----------
 
-function drawObject(ctx: CanvasRenderingContext2D, obj: SceneObject, ink: string) {
+function drawObject(
+  ctx: CanvasRenderingContext2D,
+  obj: SceneObject,
+  ink: string,
+  ends?: { x1: number; y1: number; x2: number; y2: number },
+) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = obj.color === 'ink' ? ink : obj.color;
-  ctx.lineWidth = obj.width;
+  const stroke = obj.color === 'ink' ? ink : obj.color;
+  ctx.strokeStyle = stroke;
+  ctx.fillStyle = stroke;
+  if ('width' in obj) ctx.lineWidth = obj.width;
   if (obj.kind === 'stroke') {
     const p = obj.points;
     if (p.length < 2) return;
@@ -688,13 +790,54 @@ function drawObject(ctx: CanvasRenderingContext2D, obj: SceneObject, ink: string
       ctx.closePath();
       ctx.stroke();
     }
+    if (obj.text) drawLabel(ctx, obj.text, x, y, w, h, ink);
+  } else if (obj.kind === 'text') {
+    ctx.fillStyle = obj.color === 'ink' ? ink : obj.color;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.font = `500 ${obj.size}px ${FONT}`;
+    const lines = obj.text.split('\n');
+    lines.forEach((ln, i) => ctx.fillText(ln, obj.x, obj.y + i * obj.size * 1.3));
   } else {
+    const e = ends ?? { x1: obj.x1, y1: obj.y1, x2: obj.x2, y2: obj.y2 };
     ctx.beginPath();
-    ctx.moveTo(obj.x1, obj.y1);
-    ctx.lineTo(obj.x2, obj.y2);
+    ctx.moveTo(e.x1, e.y1);
+    ctx.lineTo(e.x2, e.y2);
     ctx.stroke();
-    if (obj.arrow) drawArrowHead(ctx, obj.x1, obj.y1, obj.x2, obj.y2, obj.width);
+    if (obj.arrow) drawArrowHead(ctx, e.x1, e.y1, e.x2, e.y2, obj.width);
   }
+}
+
+function drawLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, w: number, h: number, ink: string) {
+  ctx.save();
+  ctx.fillStyle = ink;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `500 ${LABEL_SIZE}px ${FONT}`;
+  const lines = wrapLabel(ctx, text, w - 12);
+  const lh = LABEL_SIZE * 1.25;
+  const startY = y + h / 2 - ((lines.length - 1) * lh) / 2;
+  lines.forEach((ln, i) => ctx.fillText(ln, x + w / 2, startY + i * lh));
+  ctx.restore();
+}
+
+function wrapLabel(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const out: string[] = [];
+  for (const para of text.split('\n')) {
+    const words = para.split(' ');
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        out.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    out.push(line);
+  }
+  return out;
 }
 
 function drawArrowHead(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, width: number) {
@@ -729,15 +872,23 @@ function normalizeShape(s: Shape): Shape {
   };
 }
 
-// Four edge-midpoint anchors (N, E, S, W) of a shape's bounding box.
-function shapeAnchors(s: Shape): Point[] {
+function shapeCenter(s: Shape): Point {
   const n = normalizeShape(s);
-  return [
-    { x: n.x + n.w / 2, y: n.y },
-    { x: n.x + n.w, y: n.y + n.h / 2 },
-    { x: n.x + n.w / 2, y: n.y + n.h },
-    { x: n.x, y: n.y + n.h / 2 },
-  ];
+  return { x: n.x + n.w / 2, y: n.y + n.h / 2 };
+}
+
+// Point where the ray from a shape's center toward `target` exits its bounding box.
+function borderPoint(s: Shape, target: Point): Point {
+  const n = normalizeShape(s);
+  const cx = n.x + n.w / 2;
+  const cy = n.y + n.h / 2;
+  const dx = target.x - cx;
+  const dy = target.y - cy;
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+  const tx = dx !== 0 ? n.w / 2 / Math.abs(dx) : Infinity;
+  const ty = dy !== 0 ? n.h / 2 / Math.abs(dy) : Infinity;
+  const t = Math.min(tx, ty);
+  return { x: cx + dx * t, y: cy + dy * t };
 }
 
 function objBBox(obj: SceneObject): { x: number; y: number; w: number; h: number } {
@@ -749,6 +900,12 @@ function objBBox(obj: SceneObject): { x: number; y: number; w: number; h: number
     const x = Math.min(obj.x1, obj.x2);
     const y = Math.min(obj.y1, obj.y2);
     return { x, y, w: Math.abs(obj.x2 - obj.x1), h: Math.abs(obj.y2 - obj.y1) };
+  }
+  if (obj.kind === 'text') {
+    const lines = obj.text.split('\n');
+    const w = Math.max(1, ...lines.map((l) => l.length)) * obj.size * 0.58;
+    const h = lines.length * obj.size * 1.3;
+    return { x: obj.x, y: obj.y, w, h };
   }
   let minX = Infinity;
   let minY = Infinity;
@@ -775,6 +932,10 @@ function hitTest(obj: SceneObject, p: Point, pad: number): boolean {
   if (obj.kind === 'shape') {
     const s = normalizeShape(obj);
     return p.x >= s.x - pad && p.x <= s.x + s.w + pad && p.y >= s.y - pad && p.y <= s.y + s.h + pad;
+  }
+  if (obj.kind === 'text') {
+    const b = objBBox(obj);
+    return p.x >= b.x - pad && p.x <= b.x + b.w + pad && p.y >= b.y - pad && p.y <= b.y + b.h + pad;
   }
   return distToSeg(p, { x: obj.x1, y: obj.y1 }, { x: obj.x2, y: obj.y2 }) <= pad + obj.width / 2;
 }
@@ -809,7 +970,7 @@ function drawCursor(ctx: CanvasRenderingContext2D, x: number, y: number, color: 
   ctx.closePath();
   ctx.fill();
 
-  ctx.font = '600 11px Inter, ui-sans-serif, system-ui, sans-serif';
+  ctx.font = `600 11px ${FONT}`;
   const padX = 6;
   const w = ctx.measureText(name).width + padX * 2;
   const lx = x + 12;

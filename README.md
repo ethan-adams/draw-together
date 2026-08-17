@@ -48,11 +48,11 @@ make dev          # builds the React UI, then serves it + the gateway on :8080
 ```
 
 Open **http://localhost:8080** — the home page is a **lobby** (create or open a board).
-Open a board's URL in a second window to draw together — shapes, connectors, ink, cursors,
-and presence all sync live. **Select** a shape and
-drag it; attached connectors **stay glued to its edges** and follow. Select a connector and
-**drag either end onto a shape** to attach or re-route it. Connectors **snap to shape edges**
-as you draw them. Scroll (or two-finger drag) to pan; pinch or **⌘/Ctrl-scroll**
+Open a board's URL in a second window to draw together — shapes, connectors, text, ink,
+cursors, and presence all sync live. **Select** a shape and drag it; connectors **bound to
+it follow** (drop a connector end anywhere on a shape to bind it, and drag a selected
+connector's ends to re-route). **Double-click a shape** to label it, or use the **Text**
+tool for free-standing text. Scroll (or two-finger drag) to pan; pinch or **⌘/Ctrl-scroll**
 to zoom; Space-drag pans with any tool. Toggle **light/dark** from the toolbar (it follows
 your OS by default).
 

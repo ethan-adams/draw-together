@@ -43,6 +43,25 @@ body {
   pointer-events: none;
 }
 
+/* Inline text editor (shape labels + text boxes) — overlays the object being typed into. */
+.text-editor {
+  position: absolute;
+  z-index: 5;
+  margin: 0;
+  padding: 2px 5px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--card-bg);
+  color: var(--on-board);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  line-height: 1.25;
+  resize: none;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+  overflow: hidden;
+}
+
 /* ---- Floating chrome layout ---- */
 .top {
   position: absolute;

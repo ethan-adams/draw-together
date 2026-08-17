@@ -162,6 +162,8 @@ function Icon({ id }: { id: IconId }) {
       return svg(<path d="M12 3l9 9-9 9-9-9z" />);
     case 'connector':
       return svg(<path d="M5 19L19 5M19 5h-6M19 5v6" />);
+    case 'text':
+      return svg(<path d="M6 6h12M6 6V5m12 1V5M12 6v13m-2 0h4" />);
     case 'eraser':
       return svg(
         <>

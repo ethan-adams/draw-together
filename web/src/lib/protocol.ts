@@ -24,13 +24,15 @@ export interface Shape {
   h: number;
   color: string;
   width: number;
+  text?: string; // centered label
 }
-// A connector endpoint can be "attached" to a shape anchor (0=N,1=E,2=S,3=W).
-// Attachment is optional and forward-compatible: the geometry (x1..y2) is always
-// authoritative today; refs let a future move/reflow re-route without a re-draw.
-export interface AnchorRef {
+// A connector endpoint can be "bound" to a shape by id (a floating connection,
+// draw.io-style). When bound, the actual endpoint is derived every frame as the
+// point on that shape's border facing the other end — so it tracks the shape as
+// it moves. When unbound, the stored x1..y2 point is authoritative. (Older data
+// may carry an extra `anchor` field; only `id` is read.)
+export interface EndRef {
   id: string;
-  anchor: number;
 }
 export interface Connector {
   id: string;
@@ -42,10 +44,19 @@ export interface Connector {
   color: string;
   width: number;
   arrow: boolean;
-  from?: AnchorRef;
-  to?: AnchorRef;
+  from?: EndRef;
+  to?: EndRef;
 }
-export type SceneObject = Stroke | Shape | Connector;
+export interface Text {
+  id: string;
+  kind: 'text';
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  size: number;
+}
+export type SceneObject = Stroke | Shape | Connector | Text;
 
 export interface HelloMsg {
   type: 'hello';
