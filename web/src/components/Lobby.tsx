@@ -12,6 +12,7 @@ interface Board {
 
 const BOARDS_QUERY = `{ boards { id title objectCount lastActiveAt createdAt } }`;
 const CREATE_MUTATION = `mutation($t: String!) { createBoard(title: $t) { id } }`;
+const DELETE_MUTATION = `mutation($id: ID!) { deleteBoard(id: $id) }`;
 
 export function Lobby({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
   const [boards, setBoards] = useState<Board[] | null>(null);
@@ -42,6 +43,18 @@ export function Lobby({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: (
 
   const scratch = () => {
     location.href = `/?board=scratch-${Math.random().toString(36).slice(2, 8)}`;
+  };
+
+  const del = async (b: Board) => {
+    if (!window.confirm(`Delete "${b.title}"? This removes the board and its drawing.`)) return;
+    const prev = boards;
+    setBoards((bs) => (bs ? bs.filter((x) => x.id !== b.id) : bs)); // optimistic
+    try {
+      await gql(DELETE_MUTATION, { id: b.id });
+    } catch (e) {
+      setErr(String((e as Error).message || e));
+      setBoards(prev); // rollback
+    }
   };
 
   return (
@@ -94,12 +107,17 @@ export function Lobby({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: (
             <div className="lobby-empty">No named boards yet — name one above to begin.</div>
           ) : (
             boards.map((b) => (
-              <a key={b.id} className="board-card" href={`/?board=${encodeURIComponent(b.id)}`}>
-                <div className="board-card-title">{b.title}</div>
-                <div className="board-card-meta">
-                  {b.objectCount} object{b.objectCount === 1 ? '' : 's'} · {relTime(b.lastActiveAt ?? b.createdAt)}
-                </div>
-              </a>
+              <div key={b.id} className="board-card">
+                <a className="board-card-main" href={`/?board=${encodeURIComponent(b.id)}`}>
+                  <div className="board-card-title">{b.title}</div>
+                  <div className="board-card-meta">
+                    {b.objectCount} object{b.objectCount === 1 ? '' : 's'} · {relTime(b.lastActiveAt ?? b.createdAt)}
+                  </div>
+                </a>
+                <button className="board-del" onClick={() => del(b)} title="Delete board" aria-label={`Delete ${b.title}`}>
+                  ×
+                </button>
+              </div>
             ))
           )}
         </div>

@@ -10,11 +10,15 @@ export interface CanvasHandle {
   zoomIn: () => void;
   zoomOut: () => void;
   resetView: () => void;
+  bringToFront: () => void;
+  sendToBack: () => void;
+  exportImage: () => { dataUrl: string; width: number; height: number } | null;
 }
 
 interface Props {
   tool: Tool;
   color: string;
+  fill: string;
   width: number;
   theme: 'light' | 'dark';
   peers: Record<string, Peer>;
@@ -138,10 +142,18 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     }
     return hitTest(o, wp, pad);
   };
+  // Scene sorted back-to-front by z (ties keep insertion order).
+  const orderedScene = (): SceneObject[] =>
+    scene.current
+      .map((o, i) => ({ o, i }))
+      .sort((a, b) => (a.o.z ?? 0) - (b.o.z ?? 0) || a.i - b.i)
+      .map((x) => x.o);
+
   const topmostAt = (wp: Point): SceneObject | null => {
     const pad = 6 / view.current.scale;
-    for (let i = scene.current.length - 1; i >= 0; i--) {
-      if (hitObject(scene.current[i], wp, pad)) return scene.current[i];
+    const ord = orderedScene();
+    for (let i = ord.length - 1; i >= 0; i--) {
+      if (hitObject(ord[i], wp, pad)) return ord[i];
     }
     return null;
   };
@@ -155,6 +167,17 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     selected.current = null;
     requestRender();
     propsRef.current.onErase([id]);
+  };
+
+  const reorderSelected = (dir: 1 | -1) => {
+    const id = selected.current;
+    if (!id) return;
+    const o = scene.current.find((x) => x.id === id);
+    if (!o) return;
+    const zs = scene.current.map((x) => x.z ?? 0);
+    o.z = dir === 1 ? Math.max(...zs) + 1 : Math.min(...zs) - 1;
+    requestRender();
+    broadcast(o); // z is part of the object; peers upsert and re-sort
   };
 
   // ---- fit / resize ----
@@ -224,6 +247,12 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
           deleteSelected();
         }
       }
+      if ((e.key === ']' || e.key === '[') && selected.current) {
+        const el = document.activeElement;
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return;
+        e.preventDefault();
+        reorderSelected(e.key === ']' ? 1 : -1);
+      }
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') spaceDown.current = false;
@@ -270,9 +299,10 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     drawGrid(ctx);
     worldTransform(ctx);
     const ink = cssVar('--on-board', '#26312b');
-    for (const obj of scene.current) {
+    const paper = cssVar('--board-bg', '#f6f7f4');
+    for (const obj of orderedScene()) {
       if (editingRef.current && editingRef.current.id === obj.id) continue; // hidden while editing
-      drawObject(ctx, obj, ink, obj.kind === 'connector' ? resolveEnds(obj) : undefined);
+      drawObject(ctx, obj, ink, paper, obj.kind === 'connector' ? resolveEnds(obj) : undefined);
     }
   };
 
@@ -283,10 +313,11 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const v = view.current;
     const ink = cssVar('--on-board', '#26312b');
+    const paper = cssVar('--board-bg', '#f6f7f4');
     if (temp.current) {
       worldTransform(ctx);
       const t = temp.current;
-      drawObject(ctx, t, ink, t.kind === 'connector' ? resolveEnds(t) : undefined);
+      drawObject(ctx, t, ink, paper, t.kind === 'connector' ? resolveEnds(t) : undefined);
     }
     screenTransform(ctx);
     if (propsRef.current.tool === 'connector' || action.current === 'endpoint') drawBindHint(ctx);
@@ -505,7 +536,18 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       temp.current = { id: newObjectId(), kind: 'stroke', color, width, points: [wp] };
     } else if (tool === 'rect' || tool === 'ellipse' || tool === 'diamond') {
       action.current = 'shape';
-      temp.current = { id: newObjectId(), kind: 'shape', shape: tool, x: wp.x, y: wp.y, w: 0, h: 0, color, width };
+      temp.current = {
+        id: newObjectId(),
+        kind: 'shape',
+        shape: tool,
+        x: wp.x,
+        y: wp.y,
+        w: 0,
+        h: 0,
+        color,
+        width,
+        fill: propsRef.current.fill,
+      };
     } else if (tool === 'connector') {
       action.current = 'connector';
       const s = shapeAt(wp, BIND_MARGIN_PX);
@@ -724,6 +766,46 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
         requestRender();
         propsRef.current.onZoom(1);
       },
+      bringToFront: () => reorderSelected(1),
+      sendToBack: () => reorderSelected(-1),
+      exportImage: () => {
+        const objs = scene.current;
+        if (!objs.length) return null;
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (const o of objs) {
+          const b = objBBox(o);
+          minX = Math.min(minX, b.x);
+          minY = Math.min(minY, b.y);
+          maxX = Math.max(maxX, b.x + b.w);
+          maxY = Math.max(maxY, b.y + b.h);
+        }
+        if (!isFinite(minX)) return null;
+        const pad = 48;
+        minX -= pad;
+        minY -= pad;
+        maxX += pad;
+        maxY += pad;
+        const s = 2; // export at 2x for crispness
+        const cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round((maxX - minX) * s));
+        cv.height = Math.max(1, Math.round((maxY - minY) * s));
+        const ctx = cv.getContext('2d');
+        if (!ctx) return null;
+        const paper = cssVar('--board-bg', '#f6f7f4');
+        const ink = cssVar('--on-board', '#26312b');
+        ctx.fillStyle = paper;
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        ctx.setTransform(s, 0, 0, s, -minX * s, -minY * s);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (const obj of orderedScene()) {
+          drawObject(ctx, obj, ink, paper, obj.kind === 'connector' ? resolveEnds(obj) : undefined);
+        }
+        return { dataUrl: cv.toDataURL('image/jpeg', 0.92), width: cv.width, height: cv.height };
+      },
     }),
     [],
   );
@@ -790,6 +872,7 @@ function drawObject(
   ctx: CanvasRenderingContext2D,
   obj: SceneObject,
   ink: string,
+  paper: string,
   ends?: { x1: number; y1: number; x2: number; y2: number },
 ) {
   ctx.lineCap = 'round';
@@ -807,13 +890,13 @@ function drawObject(
     ctx.stroke();
   } else if (obj.kind === 'shape') {
     const { x, y, w, h } = normalizeShape(obj);
+    const fillKey = obj.fill ?? 'paper';
+    const fillStyle = fillKey === 'none' ? null : fillKey === 'paper' ? paper : fillKey;
     if (obj.shape === 'rect') {
       roundRectPath(ctx, x, y, w, h, Math.min(10, Math.min(w, h) * 0.18));
-      ctx.stroke();
     } else if (obj.shape === 'ellipse') {
       ctx.beginPath();
       ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-      ctx.stroke();
     } else {
       ctx.beginPath();
       ctx.moveTo(x + w / 2, y);
@@ -821,8 +904,13 @@ function drawObject(
       ctx.lineTo(x + w / 2, y + h);
       ctx.lineTo(x, y + h / 2);
       ctx.closePath();
-      ctx.stroke();
     }
+    if (fillStyle) {
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
     if (obj.text) drawLabel(ctx, obj.text, x, y, w, h, ink);
   } else if (obj.kind === 'text') {
     ctx.fillStyle = obj.color === 'ink' ? ink : obj.color;

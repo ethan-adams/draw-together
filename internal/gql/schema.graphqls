@@ -27,4 +27,6 @@ type Query {
 type Mutation {
   "Register a named board and return it; open it at /?board=<id>."
   createBoard(title: String!): Board!
+  "Delete a board and its drawing. Returns true."
+  deleteBoard(id: ID!): Boolean!
 }

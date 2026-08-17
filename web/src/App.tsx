@@ -6,7 +6,8 @@ import { StatusPill } from './components/StatusPill';
 import { Lobby } from './components/Lobby';
 import { useDraw } from './lib/useDraw';
 import { useTheme, Theme } from './lib/useTheme';
-import { INK, INK_HEX } from './lib/protocol';
+import { INK, INK_HEX, PAPER } from './lib/protocol';
+import { downloadJpegPdf } from './lib/pdf';
 import { Tool } from './lib/tools';
 
 export default function App() {
@@ -23,9 +24,15 @@ export default function App() {
 function BoardApp({ board, theme, onToggleTheme }: { board: string; theme: Theme; onToggleTheme: () => void }) {
   const [tool, setTool] = useState<Tool>('select');
   const [color, setColor] = useState<string>(INK);
+  const [fill, setFill] = useState<string>(PAPER);
   const [width, setWidth] = useState(4);
   const [zoom, setZoom] = useState(1);
   const canvas = useRef<CanvasHandle>(null);
+
+  const exportPdf = () => {
+    const img = canvas.current?.exportImage();
+    if (img) downloadJpegPdf(img.dataUrl, img.width, img.height, `${board}.pdf`);
+  };
 
   const { status, node, peers, me, sendAdd, sendErase, sendClear, sendCursor } = useDraw({
     board,
@@ -47,6 +54,8 @@ function BoardApp({ board, theme, onToggleTheme }: { board: string; theme: Theme
           setTool={setTool}
           color={color}
           setColor={setColor}
+          fill={fill}
+          setFill={setFill}
           inkHex={INK_HEX[theme]}
           width={width}
           setWidth={setWidth}
@@ -54,6 +63,9 @@ function BoardApp({ board, theme, onToggleTheme }: { board: string; theme: Theme
           onZoomIn={() => canvas.current?.zoomIn()}
           onZoomOut={() => canvas.current?.zoomOut()}
           onZoomReset={() => canvas.current?.resetView()}
+          onBringToFront={() => canvas.current?.bringToFront()}
+          onSendToBack={() => canvas.current?.sendToBack()}
+          onExportPdf={exportPdf}
           theme={theme}
           onToggleTheme={onToggleTheme}
           onClear={clear}
@@ -68,6 +80,7 @@ function BoardApp({ board, theme, onToggleTheme }: { board: string; theme: Theme
         ref={canvas}
         tool={tool}
         color={color}
+        fill={fill}
         width={width}
         theme={theme}
         peers={peers}

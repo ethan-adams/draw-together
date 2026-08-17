@@ -23,6 +23,14 @@ func (r *mutationResolver) CreateBoard(ctx context.Context, title string) (*Boar
 	return toBoard(b), nil
 }
 
+// DeleteBoard is the resolver for the deleteBoard field.
+func (r *mutationResolver) DeleteBoard(ctx context.Context, id string) (bool, error) {
+	if err := r.Reg.DeleteBoard(ctx, id); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // Boards is the resolver for the boards field.
 func (r *queryResolver) Boards(ctx context.Context) ([]*Board, error) {
 	bs, err := r.Reg.ListBoards(ctx)

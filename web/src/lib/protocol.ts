@@ -7,12 +7,14 @@ export type Point = { x: number; y: number };
 
 export type ShapeKind = 'rect' | 'ellipse' | 'diamond';
 
+// z orders objects front-to-back (higher = in front); ties keep insertion order.
 export interface Stroke {
   id: string;
   kind: 'stroke';
   color: string;
   width: number;
   points: Point[];
+  z?: number;
 }
 export interface Shape {
   id: string;
@@ -25,6 +27,8 @@ export interface Shape {
   color: string;
   width: number;
   text?: string; // centered label
+  fill?: string; // interior fill; 'paper' = board color (default, opaque), 'none' = transparent, or a hex
+  z?: number;
 }
 // A connector endpoint can be "bound" to a shape by id (a floating connection,
 // draw.io-style). When bound, the actual endpoint is derived every frame as the
@@ -46,6 +50,7 @@ export interface Connector {
   arrow: boolean;
   from?: EndRef;
   to?: EndRef;
+  z?: number;
 }
 export interface Text {
   id: string;
@@ -55,6 +60,7 @@ export interface Text {
   text: string;
   color: string;
   size: number;
+  z?: number;
 }
 export type SceneObject = Stroke | Shape | Connector | Text;
 
@@ -93,6 +99,13 @@ export type ServerMsg = HelloMsg | AddMsg | EraseMsg | ClearMsg | CursorMsg;
 // they're in. Any explicit swatch or picker stores a real hex instead.
 export const INK = 'ink';
 export const INK_HEX = { light: '#26312b', dark: '#e9ede9' } as const;
+
+// Shape fill: 'paper' resolves to the board color (opaque, so shapes occlude what
+// they cover) and is the default; 'none' is transparent; anything else is a hex.
+export const PAPER = 'paper';
+export const FILL_NONE = 'none';
+// A few handy fill presets for the picker (plus None + custom in the UI).
+export const FILLS = ['#fde68a', '#fca5a5', '#a7f3d0', '#bfdbfe', '#ddd6fe', '#e5e7eb'];
 
 // The rest of the palette reads on both light and dark boards. Any other color
 // is a click away via the custom picker.

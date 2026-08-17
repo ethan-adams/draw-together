@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { INK, PALETTE } from '../lib/protocol';
+import { FILLS, FILL_NONE, INK, PALETTE, PAPER } from '../lib/protocol';
 import { TOOLS, Tool } from '../lib/tools';
 import { Theme } from '../lib/useTheme';
 
-type IconId = Tool | 'zin' | 'zout' | 'reset' | 'clear' | 'sun' | 'moon';
+type IconId = Tool | 'zin' | 'zout' | 'reset' | 'clear' | 'sun' | 'moon' | 'front' | 'back' | 'pdf' | 'more';
 
 interface Props {
   tool: Tool;
   setTool: (t: Tool) => void;
   color: string;
   setColor: (c: string) => void;
+  fill: string;
+  setFill: (c: string) => void;
   inkHex: string;
   width: number;
   setWidth: (w: number) => void;
@@ -17,35 +19,45 @@ interface Props {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
+  onBringToFront: () => void;
+  onSendToBack: () => void;
+  onExportPdf: () => void;
   theme: Theme;
   onToggleTheme: () => void;
   onClear: () => void;
 }
 
-export function Toolbar({
-  tool,
-  setTool,
-  color,
-  setColor,
-  inkHex,
-  width,
-  setWidth,
-  zoom,
-  onZoomIn,
-  onZoomOut,
-  onZoomReset,
-  theme,
-  onToggleTheme,
-  onClear,
-}: Props) {
+export function Toolbar(props: Props) {
+  const {
+    tool,
+    setTool,
+    color,
+    setColor,
+    fill,
+    setFill,
+    inkHex,
+    width,
+    setWidth,
+    zoom,
+    onZoomIn,
+    onZoomOut,
+    onZoomReset,
+    onBringToFront,
+    onSendToBack,
+    onExportPdf,
+    theme,
+    onToggleTheme,
+    onClear,
+  } = props;
+
   const shown = color === INK ? inkHex : color;
+  const paperHex = getComputedStyle(document.documentElement).getPropertyValue('--board-bg').trim() || '#f6f7f4';
+  const fillDot = fill === FILL_NONE ? 'transparent' : fill === PAPER ? paperHex : fill;
   const [styleOpen, setStyleOpen] = useState(false);
   const styleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!styleOpen) return;
-    // Capture-phase pointerdown fires before the canvas handler, so a click
-    // anywhere outside the popover reliably closes it.
     const onDown = (e: PointerEvent) => {
       if (styleRef.current && !styleRef.current.contains(e.target as Node)) setStyleOpen(false);
     };
@@ -60,14 +72,32 @@ export function Toolbar({
     };
   }, [styleOpen]);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
   return (
     <div className="toolbar">
-      <div className="brand">
+      <a className="brand" href="/" title="Home — all boards">
         <span className="brand-mark" aria-hidden>
           EA
         </span>
         <span className="brand-name">Draw</span>
-      </div>
+      </a>
       <div className="divider" />
 
       <div className="tools">
@@ -86,12 +116,12 @@ export function Toolbar({
       </div>
       <div className="divider" />
 
-      {/* Color + width collapse into one popover so the bar stays a single row. */}
+      {/* Color, fill, and width in one popover so the bar stays a single row. */}
       <div className="style" ref={styleRef}>
         <button
           className="style-trigger"
           onClick={() => setStyleOpen((v) => !v)}
-          title="Color & stroke width"
+          title="Color, fill & width"
           aria-label="Color and width"
           aria-expanded={styleOpen}
         >
@@ -99,27 +129,67 @@ export function Toolbar({
         </button>
         {styleOpen && (
           <div className="style-pop">
-            <div className="swatches">
-              <button
-                className={'swatch' + (color === INK ? ' active' : '')}
-                style={{ background: inkHex }}
-                onClick={() => setColor(INK)}
-                aria-label="ink color"
-              />
-              {PALETTE.map((c) => (
+            <div className="pop-row">
+              <span className="pop-label">Stroke</span>
+              <div className="swatches">
                 <button
-                  key={c}
-                  className={'swatch' + (c === color ? ' active' : '')}
-                  style={{ background: c }}
-                  onClick={() => setColor(c)}
-                  aria-label={`color ${c}`}
+                  className={'swatch' + (color === INK ? ' active' : '')}
+                  style={{ background: inkHex }}
+                  onClick={() => setColor(INK)}
+                  aria-label="ink color"
                 />
-              ))}
-              <label className="swatch custom" title="Pick any color" aria-label="custom color">
-                <span className="swatch-dot" style={{ background: shown }} />
-                <input type="color" value={shown} onChange={(e) => setColor(e.target.value)} />
-              </label>
+                {PALETTE.map((c) => (
+                  <button
+                    key={c}
+                    className={'swatch' + (c === color ? ' active' : '')}
+                    style={{ background: c }}
+                    onClick={() => setColor(c)}
+                    aria-label={`color ${c}`}
+                  />
+                ))}
+                <label className="swatch custom" title="Pick any stroke color" aria-label="custom stroke color">
+                  <span className="swatch-dot" style={{ background: shown }} />
+                  <input type="color" value={shown} onChange={(e) => setColor(e.target.value)} />
+                </label>
+              </div>
             </div>
+
+            <div className="pop-row">
+              <span className="pop-label">Fill</span>
+              <div className="swatches">
+                <button
+                  className={'swatch none' + (fill === FILL_NONE ? ' active' : '')}
+                  onClick={() => setFill(FILL_NONE)}
+                  aria-label="no fill"
+                  title="No fill (transparent)"
+                />
+                <button
+                  className={'swatch' + (fill === PAPER ? ' active' : '')}
+                  style={{ background: paperHex }}
+                  onClick={() => setFill(PAPER)}
+                  aria-label="paper fill"
+                  title="Board color — opaque, so it covers what's behind"
+                />
+                {FILLS.map((c) => (
+                  <button
+                    key={c}
+                    className={'swatch' + (c === fill ? ' active' : '')}
+                    style={{ background: c }}
+                    onClick={() => setFill(c)}
+                    aria-label={`fill ${c}`}
+                  />
+                ))}
+                <label className="swatch custom" title="Pick any fill color" aria-label="custom fill color">
+                  <span className="swatch-dot" style={{ background: fillDot }} />
+                  <input
+                    type="color"
+                    value={fill === PAPER || fill === FILL_NONE ? '#ffffff' : fill}
+                    onChange={(e) => setFill(e.target.value)}
+                  />
+                </label>
+              </div>
+            </div>
+
             <label className="width" title="Stroke width">
               <input type="range" min={1} max={24} value={width} onChange={(e) => setWidth(Number(e.target.value))} />
               <span className="width-preview" style={{ width: width, height: width, background: shown }} />
@@ -151,9 +221,40 @@ export function Toolbar({
         <Icon id={theme === 'dark' ? 'sun' : 'moon'} />
       </button>
 
-      <button className="icon-btn" onClick={onClear} title="Clear the board for everyone" aria-label="Clear the board">
-        <Icon id="clear" />
-      </button>
+      <div className="menu" ref={menuRef}>
+        <button
+          className="icon-btn"
+          onClick={() => setMenuOpen((v) => !v)}
+          title="More actions"
+          aria-label="More actions"
+          aria-expanded={menuOpen}
+        >
+          <Icon id="more" />
+        </button>
+        {menuOpen && (
+          <div className="menu-pop">
+            <button className="menu-item" onClick={() => { setMenuOpen(false); onBringToFront(); }}>
+              <Icon id="front" />
+              <span>Bring to front</span>
+              <kbd>]</kbd>
+            </button>
+            <button className="menu-item" onClick={() => { setMenuOpen(false); onSendToBack(); }}>
+              <Icon id="back" />
+              <span>Send to back</span>
+              <kbd>[</kbd>
+            </button>
+            <div className="menu-sep" />
+            <button className="menu-item" onClick={() => { setMenuOpen(false); onExportPdf(); }}>
+              <Icon id="pdf" />
+              <span>Export to PDF</span>
+            </button>
+            <button className="menu-item danger" onClick={() => { setMenuOpen(false); onClear(); }}>
+              <Icon id="clear" />
+              <span>Clear board</span>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -205,6 +306,27 @@ function Icon({ id }: { id: IconId }) {
           <path d="M9 20h11" />
         </>,
       );
+    case 'front':
+      return svg(
+        <>
+          <rect x="9" y="9" width="11" height="11" rx="2" />
+          <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
+        </>,
+      );
+    case 'back':
+      return svg(
+        <>
+          <rect x="4" y="4" width="11" height="11" rx="2" />
+          <path d="M9 15v3a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-3" />
+        </>,
+      );
+    case 'pdf':
+      return svg(
+        <>
+          <path d="M12 3v11m0 0l-4-4m4 4l4-4" />
+          <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+        </>,
+      );
     case 'zin':
       return svg(
         <>
@@ -232,5 +354,13 @@ function Icon({ id }: { id: IconId }) {
       return svg(<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />);
     case 'clear':
       return svg(<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />);
+    case 'more':
+      return (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none">
+          <circle cx="5" cy="12" r="1.7" />
+          <circle cx="12" cy="12" r="1.7" />
+          <circle cx="19" cy="12" r="1.7" />
+        </svg>
+      );
   }
 }

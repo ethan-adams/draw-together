@@ -27,6 +27,7 @@ type BoardRegistry interface {
 	ListBoards(ctx context.Context) ([]BoardInfo, error)
 	GetBoard(ctx context.Context, id string) (*BoardInfo, error)
 	CreateBoard(ctx context.Context, title string) (BoardInfo, error)
+	DeleteBoard(ctx context.Context, id string) error
 }
 
 // A readable, URL-safe id: a slug of the title plus a short random suffix so
@@ -74,6 +75,14 @@ func (m *MemoryRecorder) CreateBoard(_ context.Context, title string) (BoardInfo
 	m.boards[bi.ID] = bi
 	m.mu.Unlock()
 	return bi, nil
+}
+
+func (m *MemoryRecorder) DeleteBoard(_ context.Context, id string) error {
+	m.mu.Lock()
+	delete(m.boards, id)
+	delete(m.ops, id)
+	m.mu.Unlock()
+	return nil
 }
 
 func (m *MemoryRecorder) GetBoard(_ context.Context, id string) (*BoardInfo, error) {
@@ -130,6 +139,14 @@ func (p *PostgresRecorder) CreateBoard(ctx context.Context, title string) (Board
 		return BoardInfo{}, err
 	}
 	return BoardInfo{ID: id, Title: title, CreatedAt: createdAt}, nil
+}
+
+func (p *PostgresRecorder) DeleteBoard(ctx context.Context, id string) error {
+	if _, err := p.pool.Exec(ctx, `DELETE FROM boards WHERE id = $1`, id); err != nil {
+		return err
+	}
+	_, err := p.pool.Exec(ctx, `DELETE FROM board_ops WHERE board_id = $1`, id)
+	return err
 }
 
 // board list/get share this projection: each board left-joined to cheap
