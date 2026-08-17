@@ -126,8 +126,8 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     const ts = c.to ? findShape(c.to.id) : undefined;
     let a = { x: c.x1, y: c.y1 };
     let b = { x: c.x2, y: c.y2 };
-    if (fs) a = borderPoint(fs, ts ? shapeCenter(ts) : b);
-    if (ts) b = borderPoint(ts, fs ? shapeCenter(fs) : a);
+    if (fs) a = nearestAnchor(fs, ts ? shapeCenter(ts) : b);
+    if (ts) b = nearestAnchor(ts, fs ? shapeCenter(fs) : a);
     return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
   };
 
@@ -302,11 +302,19 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     const s = shapeAt(wp, BIND_MARGIN_PX);
     if (!s) return;
     const v = view.current;
-    const n = normalizeShape(s);
+    const anchors = shapeAnchors(s);
+    const near = nearestAnchor(s, wp);
     ctx.save();
-    ctx.strokeStyle = SNAP_GOLD;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(n.x * v.scale + v.tx, n.y * v.scale + v.ty, n.w * v.scale, n.h * v.scale);
+    for (const a of anchors) {
+      const isNear = a.x === near.x && a.y === near.y;
+      ctx.beginPath();
+      ctx.arc(a.x * v.scale + v.tx, a.y * v.scale + v.ty, isNear ? 6 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = isNear ? SNAP_GOLD : 'rgba(212, 175, 55, 0.55)';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    }
     ctx.restore();
   };
 
@@ -902,18 +910,32 @@ function shapeCenter(s: Shape): Point {
   return { x: n.x + n.w / 2, y: n.y + n.h / 2 };
 }
 
-// Point where the ray from a shape's center toward `target` exits its bounding box.
-function borderPoint(s: Shape, target: Point): Point {
+// Four connection points that lie ON the shape: the edge midpoints of a rect,
+// the cardinal points of an ellipse, and the vertices of a diamond all sit at
+// these same N/E/S/W positions — so a connector attaches to the shape itself.
+function shapeAnchors(s: Shape): Point[] {
   const n = normalizeShape(s);
-  const cx = n.x + n.w / 2;
-  const cy = n.y + n.h / 2;
-  const dx = target.x - cx;
-  const dy = target.y - cy;
-  if (dx === 0 && dy === 0) return { x: cx, y: cy };
-  const tx = dx !== 0 ? n.w / 2 / Math.abs(dx) : Infinity;
-  const ty = dy !== 0 ? n.h / 2 / Math.abs(dy) : Infinity;
-  const t = Math.min(tx, ty);
-  return { x: cx + dx * t, y: cy + dy * t };
+  return [
+    { x: n.x + n.w / 2, y: n.y }, // N
+    { x: n.x + n.w, y: n.y + n.h / 2 }, // E
+    { x: n.x + n.w / 2, y: n.y + n.h }, // S
+    { x: n.x, y: n.y + n.h / 2 }, // W
+  ];
+}
+
+// The connection point nearest a target — the connector attaches here.
+function nearestAnchor(s: Shape, target: Point): Point {
+  const as = shapeAnchors(s);
+  let best = as[0];
+  let bd = Infinity;
+  for (const a of as) {
+    const d = Math.hypot(a.x - target.x, a.y - target.y);
+    if (d < bd) {
+      bd = d;
+      best = a;
+    }
+  }
+  return best;
 }
 
 function objBBox(obj: SceneObject): { x: number; y: number; w: number; h: number } {

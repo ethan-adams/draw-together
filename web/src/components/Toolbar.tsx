@@ -44,11 +44,20 @@ export function Toolbar({
 
   useEffect(() => {
     if (!styleOpen) return;
-    const onDown = (e: MouseEvent) => {
+    // Capture-phase pointerdown fires before the canvas handler, so a click
+    // anywhere outside the popover reliably closes it.
+    const onDown = (e: PointerEvent) => {
       if (styleRef.current && !styleRef.current.contains(e.target as Node)) setStyleOpen(false);
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setStyleOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [styleOpen]);
 
   return (
