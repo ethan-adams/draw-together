@@ -1,6 +1,6 @@
-// Package store persists a board's durable ops (strokes and clears) so a client
-// joining late — on any node — can replay the current drawing. Cursor and hello
-// messages are transient and are never stored.
+// Package store persists a board's durable ops (added objects, erases, and
+// clears) so a client joining late — on any node — can replay the current
+// drawing. Cursor and hello messages are transient and are never stored.
 //
 // It offers two implementations of hub.Recorder:
 //
@@ -45,7 +45,10 @@ func NewMemory() *MemoryRecorder {
 
 func (m *MemoryRecorder) Record(boardID string, payload []byte) {
 	switch opType(payload) {
-	case "draw":
+	case "add", "erase", "draw":
+		// Durable board ops, replayed in order on catch-up: "add" places an
+		// object, "erase" removes objects by id, "draw" is a legacy stroke
+		// segment. ("clear" wipes; "cursor"/"hello" are transient.)
 		m.mu.Lock()
 		m.ops[boardID] = append(m.ops[boardID], cloneBytes(payload))
 		m.mu.Unlock()

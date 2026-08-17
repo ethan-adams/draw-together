@@ -19,8 +19,9 @@ type Broadcaster interface {
 	UnbindBoard(boardID string)
 }
 
-// Recorder persists a board's durable ops (strokes, clears — not cursors) and
-// replays them so a client joining late, on any node, sees the current drawing.
+// Recorder persists a board's durable ops (added objects, erases, clears — not
+// cursors) and replays them so a client joining late, on any node, sees the
+// current drawing.
 // Record is called for every inbound message and decides what is worth keeping;
 // Catchup returns the ops to replay, in order.
 type Recorder interface {

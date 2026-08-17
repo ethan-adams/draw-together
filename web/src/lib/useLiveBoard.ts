@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DrawMsg, Point, ServerMsg, randomColor, randomName } from './protocol';
+import { SceneObject, ServerMsg, randomColor, randomName } from './protocol';
 
 export type Status = 'connecting' | 'live' | 'reconnecting';
 
 export interface Peer {
   name: string;
   color: string;
-  x: number;
+  x: number; // world coords
   y: number;
   lastSeen: number;
 }
@@ -19,7 +19,8 @@ export interface Me {
 
 interface Options {
   board: string;
-  onDraw: (msg: DrawMsg) => void;
+  onAdd: (obj: SceneObject) => void;
+  onErase: (ids: string[]) => void;
   onClear: () => void;
 }
 
@@ -28,10 +29,10 @@ const PEER_TTL_MS = 5000;
 /**
  * useLiveBoard owns the WebSocket to the gateway: it connects (with auto-reconnect),
  * tracks connection status and which node served us, maintains the live set of peer
- * cursors, and exposes senders for strokes, cursors, and clears. Incoming strokes and
- * clears are handed to the caller's callbacks so the canvas can render them.
+ * cursors, and exposes senders for objects, erases, cursors, and clears. Incoming
+ * durable ops are handed to the caller's callbacks so the canvas can apply them.
  */
-export function useLiveBoard({ board, onDraw, onClear }: Options) {
+export function useLiveBoard({ board, onAdd, onErase, onClear }: Options) {
   const [status, setStatus] = useState<Status>('connecting');
   const [node, setNode] = useState<string>('');
   const [peers, setPeers] = useState<Record<string, Peer>>({});
@@ -39,10 +40,11 @@ export function useLiveBoard({ board, onDraw, onClear }: Options) {
   const me = useRef<Me>({ name: randomName(), color: randomColor(), clientId: null });
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Keep the latest callbacks without re-running the connect effect.
-  const onDrawRef = useRef(onDraw);
+  const onAddRef = useRef(onAdd);
+  const onEraseRef = useRef(onErase);
   const onClearRef = useRef(onClear);
-  onDrawRef.current = onDraw;
+  onAddRef.current = onAdd;
+  onEraseRef.current = onErase;
   onClearRef.current = onClear;
 
   useEffect(() => {
@@ -72,8 +74,14 @@ export function useLiveBoard({ board, onDraw, onClear }: Options) {
             me.current.clientId = m.clientId;
             setNode(m.node);
             break;
-          case 'draw':
-            onDrawRef.current(m);
+          case 'add':
+            onAddRef.current(m.obj);
+            break;
+          case 'erase':
+            onEraseRef.current(m.ids);
+            break;
+          case 'clear':
+            onClearRef.current();
             break;
           case 'cursor':
             if (m.clientId === me.current.clientId) break;
@@ -81,9 +89,6 @@ export function useLiveBoard({ board, onDraw, onClear }: Options) {
               ...prev,
               [m.clientId]: { name: m.name, color: m.color, x: m.x, y: m.y, lastSeen: Date.now() },
             }));
-            break;
-          case 'clear':
-            onClearRef.current();
             break;
         }
       };
@@ -118,13 +123,9 @@ export function useLiveBoard({ board, onDraw, onClear }: Options) {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
   }, []);
 
-  const sendDraw = useCallback(
-    (from: Point, to: Point, color: string, width: number) => {
-      send({ type: 'draw', clientId: me.current.clientId, from, to, color, width });
-    },
-    [send],
-  );
-
+  const sendAdd = useCallback((obj: SceneObject) => send({ type: 'add', clientId: me.current.clientId, obj }), [send]);
+  const sendErase = useCallback((ids: string[]) => send({ type: 'erase', clientId: me.current.clientId, ids }), [send]);
+  const sendClear = useCallback(() => send({ type: 'clear' }), [send]);
   const sendCursor = useCallback(
     (x: number, y: number) => {
       const m = me.current;
@@ -133,7 +134,5 @@ export function useLiveBoard({ board, onDraw, onClear }: Options) {
     [send],
   );
 
-  const sendClear = useCallback(() => send({ type: 'clear' }), [send]);
-
-  return { status, node, peers, me: me.current, sendDraw, sendCursor, sendClear };
+  return { status, node, peers, me: me.current, sendAdd, sendErase, sendClear, sendCursor };
 }

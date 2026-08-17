@@ -70,7 +70,8 @@ CREATE INDEX IF NOT EXISTS board_ops_board_seq ON board_ops (board_id, seq);`
 func (p *PostgresRecorder) Record(boardID string, payload []byte) {
 	var ev pgEvent
 	switch opType(payload) {
-	case "draw":
+	case "add", "erase", "draw":
+		// Durable board ops (add object / erase objects / legacy stroke).
 		ev = pgEvent{board: boardID, op: cloneBytes(payload)}
 	case "clear":
 		ev = pgEvent{board: boardID, clear: true}
