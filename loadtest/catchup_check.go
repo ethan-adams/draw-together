@@ -1,7 +1,7 @@
 //go:build ignore
 
 // Catch-up check: draw on one node, disconnect, then join *fresh on the other
-// node* and confirm the drawing replays from shared Postgres state — i.e. board
+// node* and confirm the drawing replays from shared Postgres state: board
 // history survives across nodes and reconnects.
 //
 // Run it against `docker compose up`:
@@ -44,9 +44,9 @@ func main() {
 	a := dial("ws://localhost:8081/ws?board=" + board)
 	send(a, map[string]any{"type": "clear"})
 	send(a, map[string]any{
-		"type": "draw",
-		"from": map[string]int{"x": 5, "y": 5},
-		"to":   map[string]int{"x": 6, "y": 6},
+		"type":  "draw",
+		"from":  map[string]int{"x": 5, "y": 5},
+		"to":    map[string]int{"x": 6, "y": 6},
 		"color": marker, "width": 2,
 	})
 
@@ -54,7 +54,7 @@ func main() {
 	time.Sleep(700 * time.Millisecond)
 	a.Close()
 
-	// Fresh client on gw2 — it drew nothing, so anything it sees is catch-up.
+	// Fresh client on gw2: it drew nothing, so anything it sees is catch-up.
 	b := dial("ws://localhost:8082/ws?board=" + board)
 	defer b.Close()
 

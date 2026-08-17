@@ -92,7 +92,7 @@ export function Toolbar(props: Props) {
 
   return (
     <div className="toolbar">
-      <a className="brand" href="/" title="Home — all boards">
+      <a className="brand" href="/" title="Home: all boards">
         <span className="brand-mark" aria-hidden>
           EA
         </span>
@@ -106,7 +106,7 @@ export function Toolbar(props: Props) {
             key={t.id}
             className={'tool' + (tool === t.id ? ' active' : '')}
             onClick={() => setTool(t.id)}
-            title={`${t.label} — ${t.hint}`}
+            title={`${t.label}: ${t.hint}`}
             aria-label={t.label}
             aria-pressed={tool === t.id}
           >
@@ -168,7 +168,7 @@ export function Toolbar(props: Props) {
                   style={{ background: paperHex }}
                   onClick={() => setFill(PAPER)}
                   aria-label="paper fill"
-                  title="Board color — opaque, so it covers what's behind"
+                  title="Board color: opaque, so it covers what's behind"
                 />
                 {FILLS.map((c) => (
                   <button

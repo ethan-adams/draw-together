@@ -43,7 +43,7 @@ body {
   pointer-events: none;
 }
 
-/* Inline text editor (shape labels + text boxes) — overlays the object being typed into. */
+/* Inline text editor (shape labels + text boxes): overlays the object being typed into. */
 .text-editor {
   position: absolute;
   z-index: 5;
@@ -85,7 +85,7 @@ body {
 /*
  * THE glass material. One definition, applied to every floating panel.
  * Confined to small chrome so the backdrop blur never sits over the
- * repainting board — that's what keeps drawing smooth.
+ * repainting board; that's what keeps drawing smooth.
  */
 .toolbar,
 .presence,

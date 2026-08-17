@@ -1,4 +1,4 @@
-// A tiny GraphQL-over-HTTP client — no framework, so the request is legible:
+// A tiny GraphQL-over-HTTP client, no framework, so the request is legible:
 // POST a { query, variables } body to /graphql, unwrap { data } or throw on errors.
 // (The live drawing does NOT use this; it's the cold path only.)
 export async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {

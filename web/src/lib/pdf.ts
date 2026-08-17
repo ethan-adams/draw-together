@@ -1,6 +1,6 @@
 // Build a one-page PDF that embeds a JPEG, with no dependencies. The image is
 // stored with the DCTDecode filter (i.e. raw JPEG bytes), which is exactly what
-// a canvas' toDataURL('image/jpeg') produces — so the whole thing is a few
+// a canvas' toDataURL('image/jpeg') produces, so the whole thing is a few
 // PDF objects plus the JPEG stream.
 
 function base64ToBytes(b64: string): Uint8Array {

@@ -26,7 +26,7 @@ services:
       POSTGRES_USER: draw
       POSTGRES_PASSWORD: draw
       POSTGRES_DB: draw
-    # Not published to the host — the gateways reach it over the compose network.
+    # Not published to the host. The gateways reach it over the compose network.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U draw -d draw"]
       interval: 3s

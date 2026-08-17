@@ -27,7 +27,7 @@ export function StatusPill({ status, node, board }: Props) {
         className={`status ${status}`}
         title={
           status === 'live'
-            ? `Live — your realtime link is up, on gateway node "${node}". Nodes are interchangeable; a load balancer spreads people across them and they all serve this same board.`
+            ? `Live: your realtime link is up, on gateway node "${node}". Nodes are interchangeable; a load balancer spreads people across them and they all serve this same board.`
             : LABEL[status]
         }
       >

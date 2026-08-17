@@ -1,7 +1,7 @@
 //go:build ignore
 
 // Cross-node check: connect two clients to two *different* gateway nodes on the
-// same board, send from one, and confirm the other receives it — i.e. Redis
+// same board, send from one, and confirm the other receives it: Redis
 // fan-out really crosses nodes.
 //
 // Run it against `docker compose up`:
@@ -53,9 +53,9 @@ func main() {
 	}()
 
 	draw, _ := json.Marshal(map[string]any{
-		"type": "draw",
-		"from": map[string]int{"x": 0, "y": 0},
-		"to":   map[string]int{"x": 10, "y": 10},
+		"type":  "draw",
+		"from":  map[string]int{"x": 0, "y": 0},
+		"to":    map[string]int{"x": 10, "y": 10},
 		"color": "#000", "width": 3,
 	})
 	if err := a.WriteMessage(websocket.TextMessage, draw); err != nil {

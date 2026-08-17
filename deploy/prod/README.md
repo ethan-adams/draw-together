@@ -1,6 +1,6 @@
 # Deploy Draw to a server
 
-Host the whole thing on one small Linux box — a cheap VPS, a spare machine, a
+Host the whole thing on one small Linux box: a cheap VPS, a spare machine, a
 Raspberry Pi. You get real multiplayer (two gateway nodes sharing boards through
 Redis, durable in Postgres) behind Caddy with automatic HTTPS. No Kubernetes
 required; that's for the scale story, not for running one instance.
@@ -42,7 +42,7 @@ cd /opt/draw-together && git pull
 cd deploy/prod && docker compose --env-file .env up -d --build
 ```
 
-Boards survive updates and reboots — Postgres and Caddy's certificates live in
+Boards survive updates and reboots: Postgres and Caddy's certificates live in
 named Docker volumes, and every service restarts on its own.
 
 ## What's running
@@ -55,4 +55,4 @@ named Docker volumes, and every service restarts on its own.
 | `postgres` | Durable board op log (named volume `pgdata`) |
 
 Two gateway nodes on one box is the same design that scales to many nodes on a
-cluster — it just proves the cross-node path is real in production, too.
+cluster. It just proves the cross-node path is real in production, too.

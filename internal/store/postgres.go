@@ -19,7 +19,7 @@ const (
 //
 // Writes never touch the drawing hot path: Record only enqueues, and a single
 // background writer batches inserts (unnest of arrays) on a timer. Under
-// overload the queue sheds rather than blocking a client — a dropped stroke is
+// overload the queue sheds rather than blocking a client: a dropped stroke is
 // corrected by the next one, same best-effort stance as delivery.
 type PostgresRecorder struct {
 	pool *pgxpool.Pool

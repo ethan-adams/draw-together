@@ -19,7 +19,7 @@ type Broadcaster interface {
 	UnbindBoard(boardID string)
 }
 
-// Recorder persists a board's durable ops (added objects, erases, clears — not
+// Recorder persists a board's durable ops (added objects, erases, clears, not
 // cursors) and replays them so a client joining late, on any node, sees the
 // current drawing.
 // Record is called for every inbound message and decides what is worth keeping;
@@ -31,8 +31,8 @@ type Recorder interface {
 
 type nopRecorder struct{}
 
-func (nopRecorder) Record(string, []byte)      {}
-func (nopRecorder) Catchup(string) [][]byte    { return nil }
+func (nopRecorder) Record(string, []byte)   {}
+func (nopRecorder) Catchup(string) [][]byte { return nil }
 
 // Hub is the per-node board registry.
 type Hub struct {
@@ -115,7 +115,7 @@ func (h *Hub) Catchup(boardID string) [][]byte { return h.rec.Catchup(boardID) }
 // remote-origin messages.
 //
 // Delivery is best-effort: a client whose send buffer is full is skipped rather
-// than blocked on. Draw favors fresh state over guaranteed delivery — see
+// than blocked on. Draw favors fresh state over guaranteed delivery. See
 // DECISIONS.md.
 func (h *Hub) DeliverLocal(boardID, senderID string, payload []byte) {
 	h.mu.RLock()

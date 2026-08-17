@@ -32,7 +32,7 @@ export interface Shape {
 }
 // A connector endpoint can be "bound" to a shape by id (a floating connection,
 // draw.io-style). When bound, the actual endpoint is derived every frame as the
-// point on that shape's border facing the other end — so it tracks the shape as
+// point on that shape's border facing the other end, so it tracks the shape as
 // it moves. When unbound, the stored x1..y2 point is authoritative. (Older data
 // may carry an extra `anchor` field; only `id` is read.)
 export interface EndRef {
@@ -94,7 +94,7 @@ export interface CursorMsg {
 export type ServerMsg = HelloMsg | AddMsg | EraseMsg | ClearMsg | CursorMsg;
 
 // The default "ink" is a theme-adaptive sentinel: objects drawn with it store
-// the string 'ink', and each client renders it in its own theme's foreground —
+// the string 'ink', and each client renders it in its own theme's foreground,
 // so the default is always readable, for every collaborator, whatever theme
 // they're in. Any explicit swatch or picker stores a real hex instead.
 export const INK = 'ink';
@@ -121,7 +121,7 @@ export const PALETTE = [
 
 export const DEFAULT_COLOR = INK;
 
-// Identity colors for cursors/avatars — saturated hues that pop on a light board
+// Identity colors for cursors/avatars: saturated hues that pop on a light board
 // and carry white label text well.
 const IDENTITY_COLORS = ['#2f9e63', '#3b7dd8', '#d1495b', '#e08a3c', '#8257c5', '#0e9488'];
 

@@ -1,6 +1,6 @@
 # Design
 
-The look is a small, deliberate system — not a theme sprinkled on top. Five
+The look is a small, deliberate system, not a theme sprinkled on top. Five
 principles, one material rule, and a single token file everything reads from.
 
 ## Principles
@@ -12,16 +12,16 @@ principles, one material rule, and a single token file everything reads from.
 2. **Two materials, and only two.** See below. This is the rule worth
    remembering.
 3. **Flat, not shaded.** Solid fills, one hairline, one honest shadow per
-   elevation level. No decorative gradients — they date quickly and muddy a
+   elevation level. No decorative gradients. They date quickly and muddy a
    brand. Depth comes from a shadow scale (`--e-1/2/3`), not from paint.
 4. **The brand lives in the chrome, not on the canvas.** Forest green and gold
    identify the tool; the board stays a neutral, near-white drafting surface so a
    user's own colors read true. The product should never fight the work.
-5. **Motion is a nudge.** 120–200ms, one easing curve (`--ease`). Enough to feel
+5. **Motion is a nudge.** 120-200ms, one easing curve (`--ease`). Enough to feel
    responsive, never enough to wait on.
 
 **Light and dark** fall straight out of this: the same semantic tokens are
-redefined once for dark, so the whole product — board included — flips by
+redefined once for dark, so the whole product, board included, flips by
 following the OS preference (with a manual toggle to override). The board stays a
 *neutral* dark, not a brand-colored one, and the default "ink" is a theme-adaptive
 sentinel that each client resolves to its own foreground, so a shape one person
@@ -32,9 +32,9 @@ payoff of tokens over a hand-painted theme.
 
 Every surface is exactly one of these:
 
-- **Board — solid.** An opaque, neutral drafting surface with a faint dot grid.
+- **Board: solid.** An opaque, neutral drafting surface with a faint dot grid.
   No blur, no tint, no brand color. It is the paper.
-- **Chrome — glass.** The floating toolbar and pills use one translucent glass
+- **Chrome: glass.** The floating toolbar and pills use one translucent glass
   material: a dark forest tint, a backdrop blur, a top specular highlight, a
   faint gold hairline, and one soft shadow. Defined once and reused.
 
@@ -43,13 +43,13 @@ Every surface is exactly one of these:
 `backdrop-filter: blur()` is the expensive primitive. The browser keeps a GPU
 buffer for the blurred region and **re-blurs whatever is behind it every time
 that content changes.** On a drawing app the board repaints up to 60×/second, so
-a large glass surface sitting over the board would re-blur every frame — visible
+a large glass surface sitting over the board would re-blur every frame: visible
 jank, exactly when you want the drawing to feel effortless.
 
 So the board stays opaque and only the small, mostly-static floating panels are
 glass. A retina toolbar is well under a megabyte of GPU buffer; the board is free.
-That confinement is the same discipline Apple's Liquid Glass follows — glass on
-the controls, content underneath stays solid — and here it is a performance
+That confinement is the same discipline Apple's Liquid Glass follows (glass on
+the controls, content underneath stays solid), and here it is a performance
 decision first and an aesthetic one second. A `@supports` fallback swaps glass
 for a solid panel where `backdrop-filter` is unavailable, so it never looks
 broken.
@@ -58,10 +58,10 @@ broken.
 
 `tokens.css` is organized so semantic names never reach for a raw hex directly:
 
-- **Primitives** — the raw brand ramps (`--forest-*`, `--gold-*`, `--ink`, `--paper`).
-- **Semantics** — what the UI actually references: board (`--board-bg`,
+- **Primitives:** the raw brand ramps (`--forest-*`, `--gold-*`, `--ink`, `--paper`).
+- **Semantics:** what the UI actually references: board (`--board-bg`,
   `--board-grid`), chrome/glass (`--glass-*`, `--text*`), accent and status.
-- **Scales** — type, space (8px base), radius, elevation, motion.
+- **Scales:** type, space (8px base), radius, elevation, motion.
 
 Change a primitive and the whole product moves with it; change a semantic and
 only that role moves. That separation is what makes the layer safe to share.
@@ -70,7 +70,7 @@ only that role moves. That separation is what makes the layer safe to share.
 
 - **Chrome:** deep forest glass, warm off-white text, gold accents (the "EA"
   mark, the active-swatch ring, the hairline).
-- **Board default ink** is a soft near-black — a whiteboard's default pen, not a
+- **Board default ink** is a soft near-black, a whiteboard's default pen, not a
   brand color. The swatches offer a handful of everyday diagram colors plus the
   brand gold and green, and a rainbow picker covers everything else.
 - **Identity colors** (cursors, avatars) are saturated hues chosen to pop on a

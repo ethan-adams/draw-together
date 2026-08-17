@@ -79,7 +79,7 @@ export function Lobby({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: (
       <main className="lobby-main">
         <h1 className="lobby-title">Your boards</h1>
         <p className="lobby-sub">
-          Real-time diagram canvases. Name a new one, or open a recent board — anyone with the link draws on it live.
+          Real-time diagram boards. Name a new one or open a recent board. Anyone with the link can draw on it live.
         </p>
 
         <form className="lobby-create" onSubmit={create}>
@@ -104,7 +104,7 @@ export function Lobby({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: (
           {boards === null ? (
             <div className="lobby-empty">Loading boards…</div>
           ) : boards.length === 0 ? (
-            <div className="lobby-empty">No named boards yet — name one above to begin.</div>
+            <div className="lobby-empty">No named boards yet. Name one above to begin.</div>
           ) : (
             boards.map((b) => (
               <div key={b.id} className="board-card">

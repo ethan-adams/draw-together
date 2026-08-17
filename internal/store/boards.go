@@ -22,7 +22,7 @@ type BoardInfo struct {
 
 // BoardRegistry is the cold-path view of boards behind the GraphQL API:
 // list/create/get named boards. Ad-hoc boards opened by a raw ?board= URL are
-// not registered here — the lobby lists the named ones.
+// not registered here; the lobby lists the named ones.
 type BoardRegistry interface {
 	ListBoards(ctx context.Context) ([]BoardInfo, error)
 	GetBoard(ctx context.Context, id string) (*BoardInfo, error)

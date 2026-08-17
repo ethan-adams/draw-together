@@ -70,7 +70,7 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	})
 	c.send <- hello
 
-	// Replay the current board so a late joiner — on any node — sees the drawing
+	// Replay the current board so a late joiner, on any node, sees the drawing
 	// immediately instead of a blank canvas.
 	for _, op := range h.Catchup(c.boardID) {
 		c.send <- op

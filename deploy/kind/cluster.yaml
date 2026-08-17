@@ -1,4 +1,4 @@
-# A local, multi-node Kubernetes cluster — three nodes, zero cloud cost.
+# A local, multi-node Kubernetes cluster: three nodes, zero cloud cost.
 # The gateway runs as 3 replicas spread across the two worker nodes; Redis and
 # Postgres run in-cluster. Load tests run as an in-cluster Job, so traffic never
 # crosses the host's port-forward proxy.

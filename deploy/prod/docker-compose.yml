@@ -1,5 +1,5 @@
 # Production single-box deploy: the full Draw stack behind Caddy with
-# automatic HTTPS. Runs anywhere Docker runs — a small VPS, a spare Linux box,
+# automatic HTTPS. Runs anywhere Docker runs: a small VPS, a spare Linux box,
 # a Raspberry Pi. Two interchangeable gateway nodes share boards through Redis
 # and persist them to Postgres, exactly like the local scale demo, so a live
 # site proves cross-node fan-out for real.

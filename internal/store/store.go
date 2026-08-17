@@ -1,5 +1,5 @@
 // Package store persists a board's durable ops (added objects, erases, and
-// clears) so a client joining late — on any node — can replay the current
+// clears) so a client joining late, on any node, can replay the current
 // drawing. Cursor and hello messages are transient and are never stored.
 //
 // It offers two implementations of hub.Recorder:
@@ -32,7 +32,7 @@ func cloneBytes(b []byte) []byte {
 
 // MemoryRecorder keeps each board's stroke ops in memory. A "clear" drops the
 // board's history. State is not shared between processes, so it only gives
-// catch-up on a single node — good enough for local dev.
+// catch-up on a single node, good enough for local dev.
 type MemoryRecorder struct {
 	mu     sync.Mutex
 	ops    map[string][][]byte

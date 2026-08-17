@@ -1,14 +1,14 @@
 /*
- * Design tokens — the single source of truth for color, type, space, and depth.
+ * Design tokens: the single source of truth for color, type, space, and depth.
  * Everything visual references these variables, so the whole product re-themes
  * from this one file. Written to be lifted into a shared token layer later.
  *
  * Two-material model (the one design rule worth remembering):
  *   • BOARD  = SOLID. A neutral, opaque drafting surface. The canvas stays out
- *     of the way so a user's own colors read true — the brand does not tint it.
+ *     of the way so a user's own colors read true; the brand does not tint it.
  *   • CHROME = GLASS. The floating toolbar and pills use one translucent glass
  *     material: a tint, a backdrop blur, a top specular highlight, a hairline,
- *     and one shadow. Glass is confined to small floating panels on purpose —
+ *     and one shadow. Glass is confined to small floating panels on purpose:
  *     a backdrop blur re-blurs whatever moves behind it, so keeping it off the
  *     constantly-repainting board is what keeps drawing at 60fps. Content is
  *     opaque; only the controls are glass. (Same discipline Apple uses.)
@@ -93,12 +93,12 @@
 }
 
 /*
- * Dark mode. Only the semantic tokens move — the board becomes a neutral dark
+ * Dark mode. Only the semantic tokens move: the board becomes a neutral dark
  * charcoal (still neutral, so users' colors read true; the brand stays in the
  * chrome), and the glass chrome lifts a shade so it separates from the darker
  * board. Applied two ways: the system preference by default, and an explicit
  * data-theme="dark" override from the toggle. (Values are duplicated across the
- * two selectors on purpose — one is the system default, one is the manual pick.)
+ * two selectors on purpose: one is the system default, one is the manual pick.)
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {

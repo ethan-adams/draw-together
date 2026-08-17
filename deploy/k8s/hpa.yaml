@@ -1,6 +1,6 @@
 # Autoscale the gateway on CPU. Requires metrics-server in the cluster
-# (`make metrics-server`). Optional for the load test — fixed replicas work
-# fine — but it demonstrates the payoff of stateless nodes: scaling is just
+# (`make metrics-server`). Optional for the load test (fixed replicas work
+# fine), but it demonstrates the payoff of stateless nodes: scaling is just
 # "add replicas," no coordination.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -48,7 +48,7 @@ const playgroundPage = `<!doctype html>
   <div class="mark">EA</div>
   <div>
     <div class="t">Draw · GraphQL control plane</div>
-    <div class="s">The cold path — list &amp; create boards. The live drawing runs over WebSocket, not here.</div>
+    <div class="s">The cold path: list &amp; create boards. The live drawing runs over WebSocket, not here.</div>
   </div>
 </header>
 <main>
@@ -61,7 +61,7 @@ const playgroundPage = `<!doctype html>
   <textarea id="q" spellcheck="false"></textarea>
   <div class="row"><button id="run" onclick="run()">&#9654; Run</button><span id="status"></span></div>
   <pre id="out">Press Run to see the result.</pre>
-  <p class="foot">The schema is federation-ready — <code>Board</code> is an entity with <code>@key(fields:&nbsp;"id")</code>, so it can compose into a supergraph. See <code>GRAPHQL.md</code> in the repo.</p>
+  <p class="foot">The schema is federation-ready. <code>Board</code> is an entity with <code>@key(fields:&nbsp;"id")</code>, so it can compose into a supergraph. See <code>GRAPHQL.md</code> in the repo.</p>
 </main>
 <script>
   var Q_LIST = "query Boards {\n  boards {\n    id\n    title\n    objectCount\n    lastActiveAt\n  }\n}";

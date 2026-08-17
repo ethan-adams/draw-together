@@ -1,7 +1,7 @@
 # Terminates HTTPS for the public domain and round-robins across the gateway
 # nodes. Caddy obtains and renews a Let's Encrypt certificate automatically, so
 # there's no cert to manage. No sticky sessions: the nodes are stateless and
-# share boards through Redis, so any node can serve any request — including the
+# share boards through Redis, so any node can serve any request, including the
 # WebSocket, which Caddy proxies (and keeps alive) transparently.
 {$DRAW_DOMAIN} {
 	reverse_proxy gw1:8080 gw2:8080

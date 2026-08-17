@@ -1,9 +1,9 @@
 """
-Draw's subgraph — the cold-path control plane.
+Draw's subgraph: the cold-path control plane.
 
 This is a federation subgraph: `Board` is an entity (note @key), so a future
 supergraph router can reference a Draw board from other subgraphs by id and
-stitch in fields each subgraph owns. The live drawing does NOT live here — that
+stitch in fields each subgraph owns. The live drawing does NOT live here; that
 stays on the raw WebSocket hot path. GraphQL is only for the rare, typed calls:
 list boards, look one up, create one.
 """
@@ -11,7 +11,7 @@ type Board @key(fields: "id") {
   "URL-safe id; open the board at /?board=<id>."
   id: ID!
   title: String!
-  "Distinct objects ever added — a rough size for the board."
+  "Distinct objects ever added, a rough size for the board."
   objectCount: Int!
   "RFC3339; null if nothing has been drawn yet."
   lastActiveAt: String

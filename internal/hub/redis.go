@@ -21,7 +21,7 @@ const channelPrefix = "board:"
 // node published itself, so a client never sees a duplicate. A node subscribes
 // to a board's channel only while it actually hosts clients on that board
 // (ref-counted via BindBoard / UnbindBoard), so no node carries traffic for
-// boards it isn't serving — that's what keeps horizontal scaling honest.
+// boards it isn't serving. That's what keeps horizontal scaling honest.
 type RedisBroadcaster struct {
 	nodeID string
 	rdb    *redis.Client
@@ -110,7 +110,7 @@ func (b *RedisBroadcaster) receiveLoop() {
 			continue
 		}
 		if string(data[:idLen]) == b.nodeID {
-			continue // our own publish — local clients already have it
+			continue // our own publish: local clients already have it
 		}
 		b.hub.DeliverLocal(boardFrom(msg.Channel), "", data[idLen:])
 	}

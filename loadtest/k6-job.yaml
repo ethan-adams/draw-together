@@ -1,5 +1,5 @@
 # In-cluster load test. Runs k6 as a Job that talks to the gateway Service
-# directly, so traffic stays inside the cluster network — no host port-forward
+# directly, so traffic stays inside the cluster network: no host port-forward
 # proxy to bottleneck on. The script comes from the `ws-load` ConfigMap.
 #
 # The __CONNS__ / __ROOM__ / __HOLD__ placeholders are filled by `make k8s-loadtest`.

@@ -33,7 +33,7 @@ const MAX_SCALE = 6;
 const GRID = 28;
 const ENDPOINT_GRAB_PX = 12; // click within this of a selected connector's end to drag it
 const BIND_MARGIN_PX = 8; // a connector end binds to a shape if dropped within this of it
-const SNAP_GOLD = 'rgba(212, 175, 55, 0.95)'; // gold — selection + bind highlight
+const SNAP_GOLD = 'rgba(212, 175, 55, 0.95)'; // gold: selection + bind highlight
 const TEXT_SIZE = 18; // default standalone text size (world units)
 const LABEL_SIZE = 16; // shape label size (world units)
 const FONT = "Inter, ui-sans-serif, system-ui, sans-serif";
@@ -1000,7 +1000,7 @@ function shapeCenter(s: Shape): Point {
 
 // Four connection points that lie ON the shape: the edge midpoints of a rect,
 // the cardinal points of an ellipse, and the vertices of a diamond all sit at
-// these same N/E/S/W positions — so a connector attaches to the shape itself.
+// these same N/E/S/W positions, so a connector attaches to the shape itself.
 function shapeAnchors(s: Shape): Point[] {
   const n = normalizeShape(s);
   return [
@@ -1011,7 +1011,7 @@ function shapeAnchors(s: Shape): Point[] {
   ];
 }
 
-// The connection point nearest a target — the connector attaches here.
+// The connection point nearest a target: the connector attaches here.
 function nearestAnchor(s: Shape, target: Point): Point {
   const as = shapeAnchors(s);
   let best = as[0];

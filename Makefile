@@ -1,4 +1,4 @@
-# Draw — the Makefile is the front door.
+# Draw: the Makefile is the front door.
 # Right now: single-node dev. Kubernetes / kind / k6 targets land in later steps.
 
 .DEFAULT_GOAL := help
@@ -68,7 +68,7 @@ kind-up: ## Create the kind cluster, load the image, deploy Redis/Postgres/gatew
 	kubectl rollout status deploy/postgres --timeout=120s
 	kubectl apply -f deploy/k8s/gateway.yaml
 	kubectl rollout status deploy/draw-gateway --timeout=120s
-	@echo "cluster ready — browse with 'make k8s-forward', load-test with 'make k8s-loadtest'"
+	@echo "cluster ready. Browse with 'make k8s-forward', load-test with 'make k8s-loadtest'"
 
 .PHONY: kind-down
 kind-down: ## Delete the kind cluster

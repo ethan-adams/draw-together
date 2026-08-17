@@ -5,7 +5,7 @@ import "testing"
 func TestMemoryRecorderKeepsBoardOpsSkipsCursors(t *testing.T) {
 	m := NewMemory()
 	m.Record("room", []byte(`{"type":"add","obj":{"id":"a","kind":"shape"}}`))
-	m.Record("room", []byte(`{"type":"cursor","x":1,"y":1}`)) // transient — must not persist
+	m.Record("room", []byte(`{"type":"cursor","x":1,"y":1}`)) // transient: must not persist
 	m.Record("room", []byte(`{"type":"erase","ids":["a"]}`))
 	m.Record("room", []byte(`{"type":"draw","from":{"x":0,"y":0}}`)) // legacy stroke still kept
 

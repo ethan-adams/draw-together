@@ -23,7 +23,7 @@ const HOLD = __ENV.HOLD || '25s';
 const URL = __ENV.URL || 'ws://localhost:8080/ws';
 
 // Guard against counting a stray non-live message. The post-connect warmup skip
-// already excludes the one-time catch-up replay, so this can be generous — we
+// already excludes the one-time catch-up replay, so this can be generous: we
 // want true high latencies under load to show, not be capped away.
 const LIVE_WINDOW_MS = 10000;
 const ROOMS = Math.max(1, Math.ceil(CONNS / ROOM));
@@ -88,6 +88,6 @@ export default function () {
 
   if (!check(res, { 'ws handshake 101': (r) => r && r.status === 101 })) {
     connectErrors.add(true);
-    sleep(1); // a failed connect returns instantly — don't spin and storm
+    sleep(1); // a failed connect returns instantly; don't spin and storm
   }
 }

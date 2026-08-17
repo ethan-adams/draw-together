@@ -2,13 +2,13 @@
 
 Draw has **two transports on purpose**, and this doc is about the quieter one.
 
-- **Hot path — raw WebSocket.** Cursors, strokes, shapes: many messages per
+- **Hot path (raw WebSocket).** Cursors, strokes, shapes: many messages per
   second per client. It stays a lean byte relay. You never want this going
   through GraphQL.
-- **Cold path — GraphQL.** The rare, typed calls: *list boards, look one up,
+- **Cold path (GraphQL).** The rare, typed calls: *list boards, look one up,
   create one.* That's what lives here, at **`/graphql`**.
 
-Keeping them separate is the whole point — see [DECISIONS.md](DECISIONS.md) for
+Keeping them separate is the whole point. See [DECISIONS.md](DECISIONS.md) for
 why the 60fps stream is not GraphQL subscriptions.
 
 ## The schema
@@ -17,7 +17,7 @@ why the 60fps stream is not GraphQL subscriptions.
 type Board @key(fields: "id") {
   id: ID!
   title: String!
-  objectCount: Int!      # distinct objects ever added — a rough size
+  objectCount: Int!      # distinct objects ever added, a rough size
   lastActiveAt: String   # RFC3339, or null if nothing drawn yet
   createdAt: String!
 }
@@ -43,7 +43,7 @@ The server ships an interactive playground. With the app running
 (`make dev`), open **http://localhost:8080/graphql/playground** and run:
 
 ```graphql
-mutation { createBoard(title: "System design — auth") { id } }
+mutation { createBoard(title: "System design: auth") { id } }
 query    { boards { id title objectCount lastActiveAt } }
 ```
 
@@ -62,7 +62,7 @@ switches to the WebSocket hot path.
 ## How it's wired
 
 - The schema is served by a **[gqlgen](https://gqlgen.com) subgraph** that lives
-  *inside* the Go gateway — no separate process. Resolvers read and write a small
+  *inside* the Go gateway: no separate process. Resolvers read and write a small
   **board registry** (`internal/store`): a `boards` table in Postgres (or an
   in-memory map for `make dev`), plus a couple of cheap stats derived from the op
   log.
@@ -94,5 +94,5 @@ in one shot:
 
 Because `Board` is an entity (`@key`), the router can hand a board id to another
 subgraph and stitch in fields that subgraph owns. For Draw on its own, the
-control plane is small — that's honest. Its value is the *pattern*: a typed cold
+control plane is small. That's honest. Its value is the *pattern*: a typed cold
 path beside the raw hot path, ready to federate.
