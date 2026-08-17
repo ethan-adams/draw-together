@@ -1,4 +1,4 @@
-// WebSocket load test for LiveBoard.
+// WebSocket load test for Draw.
 //
 // Opens CONNS concurrent clients through the load balancer, sharded into rooms
 // of ROOM users (the realistic model: many independent boards, a handful of

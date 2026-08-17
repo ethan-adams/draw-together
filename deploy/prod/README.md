@@ -1,4 +1,4 @@
-# Deploy LiveBoard to a server
+# Deploy Draw to a server
 
 Host the whole thing on one small Linux box — a cheap VPS, a spare machine, a
 Raspberry Pi. You get real multiplayer (two gateway nodes sharing boards through
@@ -12,8 +12,8 @@ Requirements: a server with a public IP, and a domain you can point at it.
 SSH in, then:
 
 ```bash
-export LIVEBOARD_DOMAIN=board.example.com
-curl -fsSL https://raw.githubusercontent.com/ethan-adams/liveboard/main/deploy/prod/bootstrap.sh | sudo -E bash
+export DRAW_DOMAIN=board.example.com
+curl -fsSL https://raw.githubusercontent.com/ethan-adams/draw/main/deploy/prod/bootstrap.sh | sudo -E bash
 ```
 
 That installs Docker, turns on a firewall (SSH + web only) and automatic
@@ -26,10 +26,10 @@ Caddy can get a certificate on start. Give it ~30s, then open the URL.
 On any host with Docker + the Compose plugin:
 
 ```bash
-git clone https://github.com/ethan-adams/liveboard.git
-cd liveboard/deploy/prod
+git clone https://github.com/ethan-adams/draw.git
+cd draw/deploy/prod
 cp .env.example .env
-# edit .env: set LIVEBOARD_DOMAIN and a strong POSTGRES_PASSWORD
+# edit .env: set DRAW_DOMAIN and a strong POSTGRES_PASSWORD
 docker compose --env-file .env up -d --build
 ```
 
@@ -38,7 +38,7 @@ Open ports **80** and **443** to the world and leave the rest closed.
 ## Updating
 
 ```bash
-cd /opt/liveboard && git pull
+cd /opt/draw && git pull
 cd deploy/prod && docker compose --env-file .env up -d --build
 ```
 

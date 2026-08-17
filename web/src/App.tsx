@@ -3,7 +3,7 @@ import { BoardCanvas, CanvasHandle } from './components/BoardCanvas';
 import { Toolbar } from './components/Toolbar';
 import { Presence } from './components/Presence';
 import { StatusPill } from './components/StatusPill';
-import { useLiveBoard } from './lib/useLiveBoard';
+import { useDraw } from './lib/useDraw';
 import { DEFAULT_COLOR } from './lib/protocol';
 import { Tool } from './lib/tools';
 
@@ -16,7 +16,7 @@ export default function App() {
   const [zoom, setZoom] = useState(1);
   const canvas = useRef<CanvasHandle>(null);
 
-  const { status, node, peers, me, sendAdd, sendErase, sendClear, sendCursor } = useLiveBoard({
+  const { status, node, peers, me, sendAdd, sendErase, sendClear, sendCursor } = useDraw({
     board,
     onAdd: (obj) => canvas.current?.applyAdd(obj),
     onErase: (ids) => canvas.current?.applyErase(ids),
@@ -63,7 +63,7 @@ export default function App() {
       />
 
       <div className="hint">
-        <kbd>Scroll</kbd> to zoom · <kbd>Space</kbd>-drag to pan · pick a shape and drag it out
+        <kbd>Scroll</kbd> to pan · <kbd>Pinch</kbd> or <kbd>⌘</kbd>-scroll to zoom · connectors snap to shapes
       </div>
     </div>
   );

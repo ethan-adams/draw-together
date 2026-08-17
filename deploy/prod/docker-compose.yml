@@ -1,19 +1,19 @@
-# Production single-box deploy: the full LiveBoard stack behind Caddy with
+# Production single-box deploy: the full Draw stack behind Caddy with
 # automatic HTTPS. Runs anywhere Docker runs — a small VPS, a spare Linux box,
 # a Raspberry Pi. Two interchangeable gateway nodes share boards through Redis
 # and persist them to Postgres, exactly like the local scale demo, so a live
 # site proves cross-node fan-out for real.
 #
-#   cp .env.example .env      # set LIVEBOARD_DOMAIN + a Postgres password
+#   cp .env.example .env      # set DRAW_DOMAIN + a Postgres password
 #   docker compose --env-file .env up -d --build
 #
-# Caddy fetches a Let's Encrypt certificate for LIVEBOARD_DOMAIN automatically;
+# Caddy fetches a Let's Encrypt certificate for DRAW_DOMAIN automatically;
 # point that domain's DNS (an A record) at this host's public IP first.
-name: liveboard-prod
+name: draw-prod
 
 x-gateway-env: &gateway-env
   REDIS_ADDR: redis:6379
-  POSTGRES_DSN: postgres://liveboard:${POSTGRES_PASSWORD}@postgres:5432/liveboard?sslmode=disable
+  POSTGRES_DSN: postgres://draw:${POSTGRES_PASSWORD}@postgres:5432/draw?sslmode=disable
 
 services:
   redis:
@@ -24,13 +24,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: liveboard
+      POSTGRES_USER: draw
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: liveboard
+      POSTGRES_DB: draw
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U liveboard -d liveboard"]
+      test: ["CMD-SHELL", "pg_isready -U draw -d draw"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -68,7 +68,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      LIVEBOARD_DOMAIN: ${LIVEBOARD_DOMAIN}
+      DRAW_DOMAIN: ${DRAW_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

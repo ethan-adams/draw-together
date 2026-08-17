@@ -115,7 +115,7 @@ func (h *Hub) Catchup(boardID string) [][]byte { return h.rec.Catchup(boardID) }
 // remote-origin messages.
 //
 // Delivery is best-effort: a client whose send buffer is full is skipped rather
-// than blocked on. LiveBoard favors fresh state over guaranteed delivery — see
+// than blocked on. Draw favors fresh state over guaranteed delivery — see
 // DECISIONS.md.
 func (h *Hub) DeliverLocal(boardID, senderID string, payload []byte) {
 	h.mu.RLock()

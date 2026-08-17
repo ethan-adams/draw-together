@@ -1,4 +1,4 @@
-import { Status } from '../lib/useLiveBoard';
+import { Status } from '../lib/useDraw';
 
 interface Props {
   status: Status;

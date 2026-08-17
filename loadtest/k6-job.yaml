@@ -17,7 +17,7 @@ spec:
           image: grafana/k6:latest
           command: ["k6", "run", "/scripts/ws_load.js"]
           env:
-            - { name: URL, value: "ws://liveboard-gateway:8080/ws" }
+            - { name: URL, value: "ws://draw-gateway:8080/ws" }
             - { name: CONNS, value: "__CONNS__" }
             - { name: ROOM, value: "__ROOM__" }
             - { name: HOLD, value: "__HOLD__" }

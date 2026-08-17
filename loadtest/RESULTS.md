@@ -1,6 +1,6 @@
 # Load test results
 
-What LiveBoard does under load, measured — not guessed.
+What Draw does under load, measured — not guessed.
 
 ## Setup
 

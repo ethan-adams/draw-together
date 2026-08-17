@@ -25,6 +25,13 @@ export interface Shape {
   color: string;
   width: number;
 }
+// A connector endpoint can be "attached" to a shape anchor (0=N,1=E,2=S,3=W).
+// Attachment is optional and forward-compatible: the geometry (x1..y2) is always
+// authoritative today; refs let a future move/reflow re-route without a re-draw.
+export interface AnchorRef {
+  id: string;
+  anchor: number;
+}
 export interface Connector {
   id: string;
   kind: 'connector';
@@ -35,6 +42,8 @@ export interface Connector {
   color: string;
   width: number;
   arrow: boolean;
+  from?: AnchorRef;
+  to?: AnchorRef;
 }
 export type SceneObject = Stroke | Shape | Connector;
 
@@ -67,23 +76,25 @@ export interface CursorMsg {
 
 export type ServerMsg = HelloMsg | AddMsg | EraseMsg | ClearMsg | CursorMsg;
 
-// Pen/shape palette — tuned to read on the dark board: warm chalk, the brand
-// gold and forest greens, plus grays and a near-black.
+// Pen/shape palette — tuned to read on the neutral (light) board: an ink default,
+// a few everyday diagram colors, and the brand gold + forest. Any other color is
+// a click away via the custom picker.
 export const PALETTE = [
-  '#ece7da', // chalk
-  '#d4af37', // gold
-  '#f2cd74', // light gold
-  '#6cc79a', // forest light
-  '#2f9e63', // forest
-  '#1e6b45', // deep forest
-  '#8a9a90', // sage gray
-  '#0d0f0d', // near-black
+  '#26312b', // ink (default)
+  '#5b6b62', // slate
+  '#d1495b', // red
+  '#e08a3c', // amber
+  '#c99a2e', // gold (brand)
+  '#2f9e63', // forest (brand)
+  '#3b7dd8', // blue
+  '#8257c5', // violet
 ];
 
-export const DEFAULT_COLOR = '#d4af37'; // gold
+export const DEFAULT_COLOR = '#26312b'; // ink
 
-// Identity colors for cursors/avatars — only the ones that pop on a dark board.
-const IDENTITY_COLORS = ['#d4af37', '#f2cd74', '#6cc79a', '#2f9e63', '#ece7da', '#8a9a90'];
+// Identity colors for cursors/avatars — saturated hues that pop on a light board
+// and carry white label text well.
+const IDENTITY_COLORS = ['#2f9e63', '#3b7dd8', '#d1495b', '#e08a3c', '#8257c5', '#0e9488'];
 
 const ADJECTIVES = ['Swift', 'Calm', 'Bright', 'Bold', 'Quiet', 'Merry', 'Clever', 'Brave', 'Gentle', 'Lucky'];
 const ANIMALS = ['Fox', 'Otter', 'Heron', 'Lynx', 'Wren', 'Koi', 'Ibex', 'Moth', 'Finch', 'Mole'];

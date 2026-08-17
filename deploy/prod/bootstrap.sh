@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Bring LiveBoard up on a fresh Ubuntu server (22.04 / 24.04) from nothing:
+# Bring Draw up on a fresh Ubuntu server (22.04 / 24.04) from nothing:
 # installs Docker, turns on a basic firewall + automatic security updates,
 # clones the repo, generates a Postgres password, and starts the production
 # stack behind Caddy with automatic HTTPS.
 #
 # Run as root (or with sudo) on the server:
 #
-#   export LIVEBOARD_DOMAIN=board.example.com
-#   curl -fsSL https://raw.githubusercontent.com/ethan-adams/liveboard/main/deploy/prod/bootstrap.sh | sudo -E bash
+#   export DRAW_DOMAIN=board.example.com
+#   curl -fsSL https://raw.githubusercontent.com/ethan-adams/draw/main/deploy/prod/bootstrap.sh | sudo -E bash
 #
-# Point LIVEBOARD_DOMAIN's DNS (an A record) at this server's public IP first,
+# Point DRAW_DOMAIN's DNS (an A record) at this server's public IP first,
 # so Caddy can obtain a certificate the moment it starts.
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/ethan-adams/liveboard.git}"
-APP_DIR="${APP_DIR:-/opt/liveboard}"
-: "${LIVEBOARD_DOMAIN:?set LIVEBOARD_DOMAIN=your.domain first}"
+REPO_URL="${REPO_URL:-https://github.com/ethan-adams/draw.git}"
+APP_DIR="${APP_DIR:-/opt/draw}"
+: "${DRAW_DOMAIN:?set DRAW_DOMAIN=your.domain first}"
 
 echo "==> Installing Docker + basics"
 export DEBIAN_FRONTEND=noninteractive
@@ -39,7 +39,7 @@ ufw --force enable
 echo "==> Automatic security updates"
 systemctl enable --now unattended-upgrades
 
-echo "==> Fetching LiveBoard into ${APP_DIR}"
+echo "==> Fetching Draw into ${APP_DIR}"
 if [ -d "$APP_DIR/.git" ]; then
 	git -C "$APP_DIR" pull --ff-only
 else
@@ -50,7 +50,7 @@ cd "$APP_DIR/deploy/prod"
 if [ ! -f .env ]; then
 	echo "==> Generating .env"
 	cat > .env <<EOF
-LIVEBOARD_DOMAIN=${LIVEBOARD_DOMAIN}
+DRAW_DOMAIN=${DRAW_DOMAIN}
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 EOF
 fi
@@ -59,6 +59,6 @@ echo "==> Building + starting the stack"
 docker compose --env-file .env up -d --build
 
 echo
-echo "==> Done. LiveBoard is coming up at https://${LIVEBOARD_DOMAIN}"
+echo "==> Done. Draw is coming up at https://${DRAW_DOMAIN}"
 echo "    First-boot certificate issuance takes ~30s. Redeploy later with:"
 echo "    cd ${APP_DIR} && git pull && cd deploy/prod && docker compose --env-file .env up -d --build"

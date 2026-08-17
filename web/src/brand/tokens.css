@@ -1,53 +1,91 @@
 /*
- * Design tokens — the single source of truth for color, type, and shape.
- * A rich, dark, "heraldic" scheme: forest green and gold over near-black,
- * with warm off-white ink. Everything visual references these variables, so
- * the whole look re-themes from this one file.
+ * Design tokens — the single source of truth for color, type, space, and depth.
+ * Everything visual references these variables, so the whole product re-themes
+ * from this one file. Written to be lifted into a shared token layer later.
+ *
+ * Two-material model (the one design rule worth remembering):
+ *   • BOARD  = SOLID. A neutral, opaque drafting surface. The canvas stays out
+ *     of the way so a user's own colors read true — the brand does not tint it.
+ *   • CHROME = GLASS. The floating toolbar and pills use one translucent glass
+ *     material: a tint, a backdrop blur, a top specular highlight, a hairline,
+ *     and one shadow. Glass is confined to small floating panels on purpose —
+ *     a backdrop blur re-blurs whatever moves behind it, so keeping it off the
+ *     constantly-repainting board is what keeps drawing at 60fps. Content is
+ *     opaque; only the controls are glass. (Same discipline Apple uses.)
  */
 :root {
-  /* Brand core */
-  --forest-light: #6cc79a;
-  --forest: #2f9e63;
-  --forest-deep: #1e6b45;
-  --forest-shadow: #123c28;
-  --gold: #d4af37;
-  --gold-light: #f2cd74;
-  --gold-deep: #a9832a;
-  --ink: #0b0f0c; /* near-black, faintly green */
-  --paper: #f3f1e9; /* warm off-white */
+  /* ---------- palette primitives (raw brand) ---------- */
+  --forest-50: #eaf6ef;
+  --forest-300: #6cc79a;
+  --forest-500: #2f9e63;
+  --forest-700: #1e6b45;
+  --forest-900: #123c28;
+  --gold-300: #f2cd74;
+  --gold-500: #d4af37;
+  --gold-700: #a9832a;
+  --ink: #1a211d; /* near-black, faintly green */
+  --paper: #f7f8f5; /* warm near-white */
 
-  /* Surfaces (dark) */
-  --bg: #090c0a;
-  --board-bg: #0b100d;
-  --board-edge: #060907;
-  --dot: rgba(120, 160, 135, 0.14);
+  /* ---------- board (solid, neutral) ---------- */
+  --board-bg: #f6f7f4;
+  --board-grid: rgba(28, 45, 36, 0.07);
+  --on-board: #26312b; /* default ink for marks/labels on the board */
+  --on-board-dim: #6b7a71;
 
-  --panel: rgba(16, 24, 19, 0.72);
-  --panel-solid: #101813;
-  --hairline: rgba(212, 175, 55, 0.24); /* faint gold */
-  --hairline-soft: rgba(255, 255, 255, 0.07);
+  /* ---------- chrome (dark glass) ---------- */
+  --glass-tint: rgba(15, 26, 20, 0.66);
+  --glass-blur: 16px;
+  --glass-sat: 155%;
+  --glass-border: rgba(212, 175, 55, 0.22); /* faint gold edge */
+  --glass-hi: rgba(255, 255, 255, 0.1); /* top specular highlight */
+  --chrome-solid: #101a14; /* @supports fallback when backdrop-filter is absent */
 
-  /* Text */
+  /* text on chrome */
   --text: #eef2ec;
-  --text-dim: #aebbb2;
-  --muted: #7f8f85;
+  --text-dim: #b3c1b8;
+  --muted: #8b978f;
 
-  /* Roles */
-  --accent: var(--forest-light);
-  --accent-strong: var(--forest);
-  --on-accent: #06120b;
+  /* ---------- accent / status ---------- */
+  --accent: var(--forest-500);
+  --accent-hi: var(--forest-300);
+  --on-accent: #eafff2;
+  --gold: var(--gold-500);
+  --live: var(--forest-300);
+  --warn: var(--gold-500);
   --ring: rgba(108, 199, 154, 0.55);
-  --live: var(--forest-light);
-  --warn: var(--gold);
 
-  /* Elevation + shape */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-pill: 999px;
-
-  /* Type */
+  /* ---------- type ---------- */
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --eyebrow: 700 11px / 1 var(--font-sans);
+  --fs-eyebrow: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+  --fw-medium: 600;
+  --fw-bold: 700;
+  --fw-black: 800;
+  --tracking-tight: -0.01em;
+
+  /* ---------- space (8px base) ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  /* ---------- radius ---------- */
+  --r-sm: 8px;
+  --r-md: 11px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+
+  /* ---------- elevation (flat: one soft shadow per level, no gradients) ---------- */
+  --e-1: 0 1px 2px rgba(6, 16, 10, 0.18);
+  --e-2: 0 6px 18px rgba(6, 16, 10, 0.22);
+  --e-3: 0 14px 40px rgba(6, 16, 10, 0.3);
+
+  /* ---------- motion ---------- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 0.12s;
+  --dur: 0.2s;
 }

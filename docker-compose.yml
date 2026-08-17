@@ -8,11 +8,11 @@
 #
 # Prefer to pin a window to a specific node? Hit http://localhost:8081 (gw1) or
 # http://localhost:8082 (gw2) directly.
-name: liveboard
+name: draw
 
 x-gateway-env: &gateway-env
   REDIS_ADDR: redis:6379
-  POSTGRES_DSN: postgres://liveboard:liveboard@postgres:5432/liveboard?sslmode=disable
+  POSTGRES_DSN: postgres://draw:draw@postgres:5432/draw?sslmode=disable
 
 services:
   redis:
@@ -23,12 +23,12 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: liveboard
-      POSTGRES_PASSWORD: liveboard
-      POSTGRES_DB: liveboard
+      POSTGRES_USER: draw
+      POSTGRES_PASSWORD: draw
+      POSTGRES_DB: draw
     # Not published to the host — the gateways reach it over the compose network.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U liveboard -d liveboard"]
+      test: ["CMD-SHELL", "pg_isready -U draw -d draw"]
       interval: 3s
       timeout: 3s
       retries: 10

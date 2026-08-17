@@ -1,4 +1,4 @@
-import { Me, Peer } from '../lib/useLiveBoard';
+import { Me, Peer } from '../lib/useDraw';
 
 interface Props {
   me: Me;

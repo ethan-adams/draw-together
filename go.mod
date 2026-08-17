@@ -1,4 +1,4 @@
-module github.com/ethan-adams/liveboard
+module github.com/ethan-adams/draw
 
 go 1.25.0
 

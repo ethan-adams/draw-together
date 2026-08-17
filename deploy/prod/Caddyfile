@@ -3,6 +3,6 @@
 # there's no cert to manage. No sticky sessions: the nodes are stateless and
 # share boards through Redis, so any node can serve any request — including the
 # WebSocket, which Caddy proxies (and keeps alive) transparently.
-{$LIVEBOARD_DOMAIN} {
+{$DRAW_DOMAIN} {
 	reverse_proxy gw1:8080 gw2:8080
 }

@@ -17,16 +17,16 @@ spec:
         - name: postgres
           image: postgres:16-alpine
           env:
-            - { name: POSTGRES_USER, value: liveboard }
-            - { name: POSTGRES_PASSWORD, value: liveboard }
-            - { name: POSTGRES_DB, value: liveboard }
+            - { name: POSTGRES_USER, value: draw }
+            - { name: POSTGRES_PASSWORD, value: draw }
+            - { name: POSTGRES_DB, value: draw }
             - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
           ports:
             - containerPort: 5432
           volumeMounts:
             - { name: data, mountPath: /var/lib/postgresql/data }
           readinessProbe:
-            exec: { command: ["pg_isready", "-U", "liveboard", "-d", "liveboard"] }
+            exec: { command: ["pg_isready", "-U", "draw", "-d", "draw"] }
             initialDelaySeconds: 2
             periodSeconds: 3
       volumes:

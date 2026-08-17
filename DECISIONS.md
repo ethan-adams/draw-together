@@ -1,6 +1,6 @@
 # Decisions
 
-Short records of the tradeoffs that actually shaped LiveBoard.
+Short records of the tradeoffs that actually shaped Draw.
 
 ## ADR 1 — The hub is a content-agnostic byte relay
 
@@ -17,7 +17,7 @@ persistence layer that folds ops into snapshots — not in the relay.
 
 **Decision:** if a client's send buffer is full, drop the frame instead of blocking the board.
 
-**Why:** LiveBoard values freshness over guaranteed delivery. A missed intermediate stroke is
+**Why:** Draw values freshness over guaranteed delivery. A missed intermediate stroke is
 corrected by the next point; a client that fell far behind is repaired by loading a snapshot,
 not by replaying a backlog. Blocking every fast client to wait on one slow one is the worse
 failure. The cost is documented, not hidden: the drop is where reliability would otherwise go.

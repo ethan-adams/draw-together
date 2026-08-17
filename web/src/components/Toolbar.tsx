@@ -36,7 +36,7 @@ export function Toolbar({
         <span className="brand-mark" aria-hidden>
           EA
         </span>
-        <span className="brand-name">LiveBoard</span>
+        <span className="brand-name">Draw</span>
       </div>
       <div className="divider" />
 
@@ -66,7 +66,8 @@ export function Toolbar({
             aria-label={`color ${c}`}
           />
         ))}
-        <label className="swatch custom" style={{ background: color }} aria-label="custom color">
+        <label className="swatch custom" title="Pick any color" aria-label="custom color">
+          <span className="swatch-dot" style={{ background: color }} />
           <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
         </label>
       </div>

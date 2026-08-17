@@ -73,7 +73,8 @@ clients. No node owns the board, so adding replicas just adds capacity.
    included; needs metrics-server)
 7. ✅ k6 load test + published results — see [loadtest/RESULTS.md](loadtest/RESULTS.md)
 8. ✅ Diagram canvas (React + TypeScript) — a retained scene drawn through a pan/zoom
-   lens: shapes, connectors, freehand, and an eraser; infinite zoom/pan; survives resize
+   lens: shapes, edge-snapping connectors, freehand, and an eraser; infinite zoom/pan;
+   survives resize; in a documented design system (see [DESIGN.md](DESIGN.md))
 9. ✅ One-command production deploy — the whole stack on one host behind Caddy with
    automatic HTTPS (see [`deploy/prod`](deploy/prod))
 10. 🔧 Finishing kit — ADRs ✅ · screenshots ✅ · load test ✅; a two-node collaboration

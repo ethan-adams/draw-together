@@ -1,11 +1,11 @@
-# LiveBoard
+# Draw
 
 A real-time collaborative **diagram canvas** built to scale **horizontally**: sketch
 shapes, connectors, and freehand ink on a shared, infinite board — and any number of
 stateless gateway nodes serve it, so an edit made on one node reaches everyone on
 every other node.
 
-![LiveBoard — two people drawing on one shared board in real time, with live cursors and presence](docs/demo.gif)
+![Draw — two people drawing on one shared board in real time, with live cursors and presence](docs/demo.gif)
 
 **Measured on a local 3-node `kind` cluster (a single 2-CPU VM, $0 cloud):** 500 concurrent
 WebSocket clients held at **p95 34 ms · p99 66 ms broadcast latency, zero errors**. The gateway
@@ -27,6 +27,10 @@ Full method, numbers, and bottleneck analysis: **[loadtest/RESULTS.md](loadtest/
   on any node, replays that log to reach the exact same board, with no coordinator.
 - **Fast catch-up.** A late joiner replays the board's op log (snapshot compaction is a
   planned optimization) instead of re-deriving state from scratch.
+- **Designed, not themed.** A small, documented design system: tokens as the single
+  source of truth and a two-material rule (a solid neutral board, one glass material for
+  the floating chrome — kept off the repainting canvas so drawing stays smooth). See
+  **[DESIGN.md](DESIGN.md)**.
 
 ## Stack
 
@@ -43,8 +47,9 @@ make dev          # builds the React UI, then serves it + the gateway on :8080
 ```
 
 Open **http://localhost:8080** in two browser windows, keep the board name the same, and
-draw — shapes, connectors, ink, cursors, and presence all sync live. Scroll to zoom,
-Space-drag to pan.
+draw — shapes, connectors, ink, cursors, and presence all sync live. Connectors **snap to
+shape edges**. Scroll (or two-finger drag) to pan; pinch or **⌘/Ctrl-scroll** to zoom;
+Space-drag pans with any tool.
 
 ## See it scale across nodes
 
@@ -74,9 +79,10 @@ go run loadtest/catchup_check.go  # history survives across nodes + reconnect
 ## Status
 
 See the [build steps in ARCHITECTURE.md](ARCHITECTURE.md#build-steps).
-Working today: a polished diagram canvas (shapes, connectors, eraser, infinite
-zoom/pan), multi-node fan-out (Redis), durable cross-node catch-up (Postgres),
-Kubernetes on `kind`, and a [published load test](loadtest/RESULTS.md).
+Working today: a polished diagram canvas (shapes, edge-snapping connectors, eraser,
+infinite zoom/pan) in a documented [design system](DESIGN.md), multi-node fan-out
+(Redis), durable cross-node catch-up (Postgres), Kubernetes on `kind`, and a
+[published load test](loadtest/RESULTS.md).
 Next: a GraphQL control plane (accounts, board list).
 
 ## License

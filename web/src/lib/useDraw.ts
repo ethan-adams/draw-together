@@ -27,12 +27,12 @@ interface Options {
 const PEER_TTL_MS = 5000;
 
 /**
- * useLiveBoard owns the WebSocket to the gateway: it connects (with auto-reconnect),
+ * useDraw owns the WebSocket to the gateway: it connects (with auto-reconnect),
  * tracks connection status and which node served us, maintains the live set of peer
  * cursors, and exposes senders for objects, erases, cursors, and clears. Incoming
  * durable ops are handed to the caller's callbacks so the canvas can apply them.
  */
-export function useLiveBoard({ board, onAdd, onErase, onClear }: Options) {
+export function useDraw({ board, onAdd, onErase, onClear }: Options) {
   const [status, setStatus] = useState<Status>('connecting');
   const [node, setNode] = useState<string>('');
   const [peers, setPeers] = useState<Record<string, Peer>>({});

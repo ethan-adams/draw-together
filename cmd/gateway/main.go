@@ -1,4 +1,4 @@
-// Command gateway is a stateless WebSocket node for LiveBoard.
+// Command gateway is a stateless WebSocket node for Draw.
 //
 // Every node is interchangeable: a client can connect to any node and still
 // share a board with clients on other nodes. Fan-out between nodes uses Redis
@@ -15,8 +15,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ethan-adams/liveboard/internal/hub"
-	"github.com/ethan-adams/liveboard/internal/store"
+	"github.com/ethan-adams/draw/internal/hub"
+	"github.com/ethan-adams/draw/internal/store"
 )
 
 func main() {
@@ -62,7 +62,7 @@ func main() {
 	})
 	mux.Handle("/", http.FileServer(http.Dir(*webDir)))
 
-	log.Printf("liveboard gateway listening on %s (serving %q)", *addr, *webDir)
+	log.Printf("draw gateway listening on %s (serving %q)", *addr, *webDir)
 	if err := http.ListenAndServe(*addr, mux); err != nil {
 		log.Fatal(err)
 	}

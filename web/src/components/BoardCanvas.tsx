@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { Point, SceneObject, Shape, newObjectId } from '../lib/protocol';
+import { AnchorRef, Point, SceneObject, Shape, newObjectId } from '../lib/protocol';
 import { Tool } from '../lib/tools';
-import { Peer } from '../lib/useLiveBoard';
+import { Peer } from '../lib/useDraw';
 
 export interface CanvasHandle {
   applyAdd: (obj: SceneObject) => void;
@@ -26,7 +26,10 @@ interface Props {
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 6;
 const GRID = 28;
-const DOT = 'rgba(120, 160, 135, 0.18)';
+const SNAP_PX = 12; // endpoint snaps to a shape anchor within this screen distance
+const ANCHOR_REVEAL_PX = 46; // shape anchors fade in when the cursor gets this close
+const ACCENT = 'rgba(47, 158, 99, 0.92)'; // forest — anchor dots
+const SNAP_GOLD = 'rgba(212, 175, 55, 0.95)'; // gold — the active snap target
 
 type ActionKind = 'draw' | 'shape' | 'connector' | 'erase' | 'pan';
 
@@ -41,6 +44,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
   const dpr = useRef(1);
   const size = useRef({ w: 0, h: 0 }); // CSS px
   const dirty = useRef(true);
+  const gridColor = useRef('rgba(28, 45, 36, 0.07)');
 
   const propsRef = useRef(props);
   propsRef.current = props;
@@ -50,6 +54,8 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
   const panStart = useRef({ sx: 0, sy: 0, tx: 0, ty: 0 });
   const erased = useRef<Set<string>>(new Set());
   const spaceDown = useRef(false);
+  const pointerWorld = useRef<Point | null>(null); // for connector anchor hints
+  const snapEnd = useRef<Point | null>(null); // the anchor the live connector is snapping to
 
   const requestRender = () => {
     dirty.current = true;
@@ -61,6 +67,25 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
   const screenPos = (e: { clientX: number; clientY: number }) => {
     const r = mainRef.current!.getBoundingClientRect();
     return { sx: e.clientX - r.left, sy: e.clientY - r.top };
+  };
+
+  // Snap: the four edge-midpoint anchors of a shape, and the nearest one to a point.
+  const findSnap = (wp: Point): { p: Point; ref: AnchorRef } | null => {
+    const thr = SNAP_PX / view.current.scale;
+    let best: { p: Point; ref: AnchorRef } | null = null;
+    let bestD = thr;
+    for (const o of scene.current) {
+      if (o.kind !== 'shape') continue;
+      const as = shapeAnchors(o);
+      for (let i = 0; i < as.length; i++) {
+        const d = Math.hypot(wp.x - as[i].x, wp.y - as[i].y);
+        if (d <= bestD) {
+          bestD = d;
+          best = { p: as[i], ref: { id: o.id, anchor: i } };
+        }
+      }
+    }
+    return best;
   };
 
   // ---- fit / resize (repaints from the retained scene, so resize never wipes it) ----
@@ -79,6 +104,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       }
       mctx.current = m.getContext('2d');
       octx.current = o.getContext('2d');
+      gridColor.current = cssVar('--board-grid', gridColor.current);
       requestRender();
     };
     fit();
@@ -92,8 +118,17 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const { sx, sy } = screenPos(e);
-      zoomAt(sx, sy, Math.exp(-e.deltaY * 0.0015));
+      // Mac trackpad: two-finger scroll pans; pinch arrives as ctrl/⌘+wheel and
+      // zooms around the cursor. Mouse users get ⌘/ctrl+scroll to zoom too.
+      if (e.ctrlKey || e.metaKey) {
+        const { sx, sy } = screenPos(e);
+        zoomAt(sx, sy, Math.exp(-e.deltaY * 0.0015));
+      } else {
+        const k = e.deltaMode === 1 ? 16 : 1; // line vs pixel deltas
+        view.current.tx -= e.deltaX * k;
+        view.current.ty -= e.deltaY * k;
+        requestRender();
+      }
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -156,14 +191,50 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     if (!ctx) return;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const v = view.current;
     if (temp.current) {
       worldTransform(ctx);
       drawObject(ctx, temp.current);
     }
     screenTransform(ctx);
-    const v = view.current;
+    // Connection-point hints while the connector tool is active.
+    if (propsRef.current.tool === 'connector') drawSnapHints(ctx);
     for (const peer of Object.values(propsRef.current.peers)) {
       drawCursor(ctx, peer.x * v.scale + v.tx, peer.y * v.scale + v.ty, peer.color, peer.name);
+    }
+  };
+
+  const drawSnapHints = (ctx: CanvasRenderingContext2D) => {
+    const v = view.current;
+    const wp = pointerWorld.current;
+    const toScreen = (p: Point) => ({ x: p.x * v.scale + v.tx, y: p.y * v.scale + v.ty });
+    if (wp) {
+      const reveal = ANCHOR_REVEAL_PX / v.scale;
+      for (const o of scene.current) {
+        if (o.kind !== 'shape') continue;
+        const as = shapeAnchors(o);
+        if (!as.some((a) => Math.hypot(wp.x - a.x, wp.y - a.y) <= reveal)) continue;
+        for (const a of as) {
+          const s = toScreen(a);
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = ACCENT;
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.stroke();
+        }
+      }
+    }
+    if (snapEnd.current) {
+      const s = toScreen(snapEnd.current);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = SNAP_GOLD;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
     }
   };
 
@@ -174,7 +245,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     const { w, h } = size.current;
     const ox = ((v.tx % g) + g) % g;
     const oy = ((v.ty % g) + g) % g;
-    ctx.fillStyle = DOT;
+    ctx.fillStyle = gridColor.current;
     const r = v.scale < 1 ? 1 : 1.3;
     for (let x = ox; x < w; x += g) {
       for (let y = oy; y < h; y += g) {
@@ -205,7 +276,20 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       temp.current = { id: newObjectId(), kind: 'shape', shape: tool, x: wp.x, y: wp.y, w: 0, h: 0, color, width };
     } else if (tool === 'connector') {
       action.current = 'connector';
-      temp.current = { id: newObjectId(), kind: 'connector', x1: wp.x, y1: wp.y, x2: wp.x, y2: wp.y, color, width, arrow: true };
+      const snap = findSnap(wp);
+      const s = snap ? snap.p : wp;
+      temp.current = {
+        id: newObjectId(),
+        kind: 'connector',
+        x1: s.x,
+        y1: s.y,
+        x2: s.x,
+        y2: s.y,
+        color,
+        width,
+        arrow: true,
+        from: snap ? snap.ref : undefined,
+      };
     } else if (tool === 'eraser') {
       action.current = 'erase';
       erased.current = new Set();
@@ -216,6 +300,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
   const onPointerMove = (e: React.PointerEvent) => {
     const { sx, sy } = screenPos(e);
     const wp = toWorld(sx, sy);
+    pointerWorld.current = wp;
     propsRef.current.onCursor(wp.x, wp.y);
     const a = action.current;
     const t = temp.current;
@@ -230,8 +315,18 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
       t.w = wp.x - t.x;
       t.h = wp.y - t.y;
     } else if (a === 'connector' && t?.kind === 'connector') {
-      t.x2 = wp.x;
-      t.y2 = wp.y;
+      const snap = findSnap(wp);
+      if (snap) {
+        t.x2 = snap.p.x;
+        t.y2 = snap.p.y;
+        t.to = snap.ref;
+        snapEnd.current = snap.p;
+      } else {
+        t.x2 = wp.x;
+        t.y2 = wp.y;
+        t.to = undefined;
+        snapEnd.current = null;
+      }
     } else if (a === 'erase') {
       eraseAt(wp);
     }
@@ -242,6 +337,7 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     const t = temp.current;
     action.current = null;
     temp.current = null;
+    snapEnd.current = null;
     if (!a || !t) return;
     if (a === 'draw' && t.kind === 'stroke' && t.points.length >= 2) commit(t);
     else if (a === 'shape' && t.kind === 'shape' && Math.abs(t.w) > 4 && Math.abs(t.h) > 4) commit(normalizeShape(t));
@@ -404,6 +500,17 @@ function normalizeShape(s: Shape): Shape {
   };
 }
 
+// Four edge-midpoint anchors (N, E, S, W) of a shape's bounding box.
+function shapeAnchors(s: Shape): Point[] {
+  const n = normalizeShape(s);
+  return [
+    { x: n.x + n.w / 2, y: n.y },
+    { x: n.x + n.w, y: n.y + n.h / 2 },
+    { x: n.x + n.w / 2, y: n.y + n.h },
+    { x: n.x, y: n.y + n.h / 2 },
+  ];
+}
+
 function hitTest(obj: SceneObject, p: Point, pad: number): boolean {
   if (obj.kind === 'stroke') {
     const pts = obj.points;
@@ -434,6 +541,11 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
+function cssVar(name: string, fallback: string): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
 function drawCursor(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, name: string) {
   ctx.save();
   ctx.fillStyle = color;
@@ -453,7 +565,7 @@ function drawCursor(ctx: CanvasRenderingContext2D, x: number, y: number, color: 
   roundRectPath(ctx, lx, ly, w, 18, 9);
   ctx.fillStyle = color;
   ctx.fill();
-  ctx.fillStyle = '#06120b';
+  ctx.fillStyle = '#fff';
   ctx.fillText(name, lx + padX, ly + 13);
   ctx.restore();
 }
