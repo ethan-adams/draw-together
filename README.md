@@ -5,7 +5,7 @@ shapes, connectors, and freehand ink on a shared, infinite board — and any num
 stateless gateway nodes serve it, so an edit made on one node reaches everyone on
 every other node.
 
-![Draw — two people drawing on one shared board in real time, with live cursors and presence](docs/demo.gif)
+![Draw — connecting two labeled shapes, then dragging one around while the connector stays attached and follows](docs/demo.gif)
 
 **Measured on a local 3-node `kind` cluster (a single 2-CPU VM, $0 cloud):** 500 concurrent
 WebSocket clients held at **p95 34 ms · p99 66 ms broadcast latency, zero errors**. The gateway

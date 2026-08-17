@@ -41,6 +41,7 @@ interface MoveState {
   obj: SceneObject;
   moved: boolean;
   orig: { x?: number; y?: number; x1?: number; y1?: number; x2?: number; y2?: number; points?: Point[] };
+  rebound: Connector[]; // loose connector ends this move just bound to the shape
 }
 
 interface Editing {
@@ -532,7 +533,28 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     } else {
       orig.points = obj.points.map((p) => ({ ...p }));
     }
-    return { start: wp, obj, moved: false, orig };
+    // Grabbing a shape binds any loose connector end sitting on it, so a connector
+    // drawn before this shape existed grabs on and follows from the first move.
+    const rebound: Connector[] = [];
+    if (obj.kind === 'shape') {
+      const n = normalizeShape(obj);
+      const m = BIND_MARGIN_PX / view.current.scale;
+      const inside = (x: number, y: number) => x >= n.x - m && x <= n.x + n.w + m && y >= n.y - m && y <= n.y + n.h + m;
+      for (const o of scene.current) {
+        if (o.kind !== 'connector') continue;
+        let changed = false;
+        if (!o.from && inside(o.x1, o.y1)) {
+          o.from = { id: obj.id };
+          changed = true;
+        }
+        if (!o.to && inside(o.x2, o.y2)) {
+          o.to = { id: obj.id };
+          changed = true;
+        }
+        if (changed) rebound.push(o);
+      }
+    }
+    return { start: wp, obj, moved: false, orig, rebound };
   };
 
   const applyMove = (wp: Point) => {
@@ -609,7 +631,10 @@ export const BoardCanvas = forwardRef<CanvasHandle, Props>(function BoardCanvas(
     if (a === 'move') {
       const m = move.current;
       move.current = null;
-      if (m && m.moved) broadcast(m.obj);
+      if (m) {
+        if (m.moved) broadcast(m.obj);
+        for (const c of m.rebound) broadcast(c); // persist any newly-bound ends
+      }
       return;
     }
     if (a === 'endpoint') {
