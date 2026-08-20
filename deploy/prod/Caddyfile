@@ -6,3 +6,8 @@
 {$DRAW_DOMAIN} {
 	reverse_proxy gw1:8080 gw2:8080
 }
+
+# Load any extra site blocks dropped into this box's local sites folder (bind-mounted
+# from /opt/edge-sites). Lets one box front additional apps on their own subdomains
+# without redefining this stack. A missing or empty folder is fine.
+import /etc/caddy/sites/*.caddy

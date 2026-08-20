@@ -71,6 +71,7 @@ services:
       DRAW_DOMAIN: ${DRAW_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/edge-sites:/etc/caddy/sites:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
